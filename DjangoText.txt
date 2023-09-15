@@ -1,0 +1,149 @@
+install python 
+install python env 
+>>> python -m venv myenv >>> myenv >>> Script>>> activate >>>
+cd StoreFront>>> pip install django >>> django-admin startproject StoreFront
+>>> pip install pillow , cleanup 
+>>> python manage.py runserver 8000
+----------------------------------------------------------------------
+>>> python manage.py create playground | and add to setting.py 
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+for Debugging Dango app=> 
+---------------------------
+from django.shortcuts import render
+from django.http import HttpResponse 
+# Create your views here.
+
+def calculate():
+    x = 1 
+    y = 2
+    return x
+
+def say_hello(request):
+ =>   x = calculate()   <== create a debugging point here then click run and debugging. reload the page check the varibale. watch the function and variable also by clicking the debugging button -> , down arrow (v)
+      return render(request, 'hello.html',{"name":"Shuvo"})
+    # return HttpResponse("Hello World")
+---------------------------
+-------------------------------------------------------------------------------------------------------
+----------------------------------------install Django Debugging---------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------
+>>> install django-debugs-tools and | set up all setting  then run the server ....
+--------------------
+
+
+--------------------------------------------- <== models==> ----------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+*** if we not define the primary key , Django will set auto primary key.
+------------------------------------------------------------------------
+
+parent Model=> Must have to uppder position  (default Django User Model)
+---------------
+child Model => Must have to lower position from Parent Model (user_Profile Model)
+---------------
+==================================================================
+Parent Model 
+------------
+   |
+   |
+   |
+   V
+Child Model .
+-------------
+*** if the parent models not oriented or not in upper positions then use => models.ForiegnKey('ParentModelsName').
+====================================================================================
+
+#one to one Relationship => Parent Model (customer) => models.OneToOneField => Child Model (Address) [Every Address model has One Customer]
+-------------------------
+#one to many Relationship => Parent Model (Cart)  => models.ForiegnKey => Child Model (Products) [***Django Create Reverse Relation auto -> ]
+-------------------------
+#many to many Relationship => Parent Model(Promotions/discount) => models.ManyToMany => Child Model(Products)
+--------------------------------------------------------------------------------------------------------
+#Collection(Parent) has multiple -> Products(child)
+
+#Customer has multiple -> Orders
+
+#Orders has multiple -> Items
+
+#Cart has multiple -> Items 
+------------------------------------on_delet = models.CaseCade,Set_Default,Set_null,Protect---------------------------------------------------------
+# on_delet=models.Protect (means => delete first child model , 
+then can able to delete Parent Model, on_delete=models.Set_Default  => 
+if delete parent class default value will be autometically set , and Set_null = for null values )
+-------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------
+*** circular Dependency Error (Parent + Child class -> use ForiegnKey) => when products , collections Dependency each other 
+------------------------------ 
+                                Django created Reverse Relationship auto ... for avoiding the error we have to use Paret Mode 
+                                [(related_name ='+') ->means -> don't created the reverse Relationship] 
+    example=> class Collections(models.Model):
+    title = models.CharField(max_length=255)
+    feature_product = models.ForeignKey('Product',on_delete=models.SET_NULL, null=True, related_name='+')
+
+-------------------------------------------------------------------------------------------------------------------
+Generic Relationship => use Tag model that can use setting =>  django.contrib.contenttypes import contenttypes
+----------------------- Models that means in whole apps User can Tag any content => product,images,video ,Artical...
+
+example of code- > 
+------------------------------------
+from django.db import models
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.auth.models import User 
+
+# Create your models here.
+
+#Give the Like in Random items => 
+----------------------------------
+class LikeItem(models.Model):
+    users = models.ForeignKey(User , on_delete=models.CASCADE) 
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey()
+
+
+
+# Give the tag in randome items=> 
+==================================
+
+class Tag(models.Model):
+    tag = models.CharField(max_length=255)
+
+class TaggItem(models.Model):
+    tag = models.ForeignKey(Tag , on_delete=models.CASCADE) 
+
+    #Dynamicly catch the object we need 3 thing : 
+    # 1. ContentType (Article, Video, Product ... )
+    # 2. ID (Get From DataBase Primary Keys) 
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    # 3.if the primary key is not positive integer then use => GenericKey
+    content_object = GenericForeignKey()
+-------------------------------------------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------------------------------------------
+
+-------------------------------------------------sqliteDb------------------------------------------------------------------
+goto vscode extension=> sqlite >>> install >>> clt+shift+p >>> sqlite open database . 
+----------------------- >>> select the files and minimize then show > sqlite explorer.
+                        >>> we can see all those data table > after migrating and migrations.
+                        >>> select Django_migration_table >>> showtable >>> 
+                        >>> python manage.py sqlmigrate table_name  003(sql_number of migratins file)
+                        >>> python manage.py sqlmigrate store 0003
+
+                        -------------------------result-----------------------------------
+                        (myenv) I:\Django Code Practice From Mosh\1.Django First Part\1.StoreFont>python manage.py sqlmigrate store 0003
+                        BEGIN;
+                        --
+                        -- Add field slug to product
+                        --
+                        CREATE TABLE "new__store_product" ("slug" varchar(50) NOT NULL, "sku" varchar(10) NOT NULL PRIMARY KEY, "title" varchar(255) NOT NULL, "describtion" text NOT NULL, "inventory" integer NOT NULL, "last_update" datetime NOT NULL, "collections_id" bigint NOT NULL REFERENCES "store_collections" ("id") DEFERRABLE INITIALLY DEFERRED, "unit_price" decimal NOT NULL);
+                        INSERT INTO "new__store_product" ("sku", "title", "describtion", "inventory", "last_update", "collections_id", "unit_price", "slug") SELECT "sku", "title", "describtion", "inventory", "last_update", "collections_id", "unit_price", '-' FROM "store_product";
+                        DROP TABLE "store_product";
+                        ALTER TABLE "new__store_product" RENAME TO "store_product";
+                        CREATE INDEX "store_product_slug_6de8ee4b" ON "store_product" ("slug");
+                        CREATE INDEX "store_product_collections_id_dd655a77" ON "store_product" ("collections_id");
+                        COMMIT;
+
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
