@@ -39,6 +39,8 @@ class Products (models.Model):
         ordering = ['title']
 
 
+
+
 class Customers(models.Model):
     MEMBERSHIP_BRONZE = 'B'
     MEMBERSHIP_SLIVER = 'S'
@@ -83,7 +85,7 @@ class Order(models.Model):
 
 class OrderItems(models.Model):
     order = models.ForeignKey(Order,on_delete=models.PROTECT)
-    Products = models.ForeignKey(Products,on_delete=models.PROTECT)
+    Products = models.ForeignKey(Products,on_delete=models.PROTECT, related_name='orderItems')
     quentity = models.PositiveSmallIntegerField()
     unit_price = models.DecimalField(max_digits=6,decimal_places=2)
 

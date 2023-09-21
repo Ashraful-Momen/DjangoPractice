@@ -5,6 +5,8 @@
 >>> setup with install apps in settings.py 
 
 -------------------------------------------------
+Model > Serializer > views (serializer.data<- convert to Dictionary) 
+-------------------------------------------------
 mainProject::StoreFront::urls.py=> 
 ----------------------------------
 admin.site.site_header = "StoreFront " #admin page heading 
@@ -50,11 +52,700 @@ def product(request,id):
 --------------------------------
 --------------------------------
 -------------------------------------------------------------------------------------------------------------
+--------------------------------------Serializer Custom Feilds-----------------------------------------------
 -------------------------------------------------------------------------------------------------------------
+store::models.py=> 
+------------------
+from django.db import models
+
+# Create your models here.
+
+
+class Promotions(models.Model):
+    describtion = models.CharField(max_length=255)
+    discount = models.FloatField()
+
+
+class Collections(models.Model):
+    title = models.CharField(max_length=255)
+    featured_product = models.ForeignKey('Products',on_delete=models.SET_NULL, null=True, related_name='+')
+
+    def __str__(self):
+        return self.title 
+    
+    class Meta:
+        ordering = ['title']
+
+    
+
+
+class Products (models.Model):
+    slug = models.SlugField()
+    sku = models.CharField(max_length=10,primary_key=True)
+    title = models.CharField(max_length=255)
+    describtion = models.TextField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2) 
+    inventory = models.IntegerField()
+    last_update = models.DateTimeField(auto_now=True)
+    collections = models.ForeignKey(Collections,on_delete=models.PROTECT) # if want to delete Collections , Before must be delete Products .
+    promotions = models.ManyToManyField(Promotions)
+
+    def __str__(self) -> str:
+        return self.title
+    
+    class Meta: 
+        ordering = ['title']
+
+
+
+
+class Customers(models.Model):
+    MEMBERSHIP_BRONZE = 'B'
+    MEMBERSHIP_SLIVER = 'S'
+    MEMBERSHIP_GOLD = 'G'
+    MEMBERSHIP_CHOICE = [
+    ('MEMBERSHIP_BRONZE','Bronze'),
+    ('MEMBERSHIP_SLIVER','Silver'),
+    ('MEMBERSHIP_GOLD','Gold'),
+    ]
+
+    first_name = models.CharField(max_length=255)
+    last_name = models.CharField(max_length=255)
+    email = models.EmailField(unique=True)
+    phone = models.IntegerField()
+    brith_date = models.DateField(null=True)
+    membership = models.CharField(max_length=17, choices=MEMBERSHIP_CHOICE, default=MEMBERSHIP_BRONZE)
+    
+    def __str__(self):
+        return f"{self.first_name} {self.last_name }"
+
+
+    class Meta:
+        ordering = ['first_name', 'last_name']
+
+
+
+class Order(models.Model):
+    PAYMENT_STATUS_PENDING = 'P'
+    PAYMENT_STATUS_COMPLETE = 'C'
+    PAYMENT_STATUS_FAILD = 'F'
+    PAYMENT_STATUS_CHOICE = [
+        ('PAYMENT_STATUS_PENDING','P'),
+        ('PAYMENT_STATUS_COMPLETE','C'),
+        ('PAYMENT_STATUS_FAILD','F'),
+    ]
+    place_order = models.DateTimeField(auto_now_add=True)
+    payment_status = models.CharField(
+    max_length=23, choices=PAYMENT_STATUS_CHOICE, default=PAYMENT_STATUS_PENDING
+    )
+
+    Customers = models.ForeignKey(Customers,on_delete=models.PROTECT) #if accidently delete the Customers , we don't delete the order .
+
+class OrderItems(models.Model):
+    order = models.ForeignKey(Order,on_delete=models.PROTECT)
+    Products = models.ForeignKey(Products,on_delete=models.PROTECT)
+    quentity = models.PositiveSmallIntegerField()
+    unit_price = models.DecimalField(max_digits=6,decimal_places=2)
+
+class Cart(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Address(models.Model):
+    street = models.CharField(max_length=255)  # Corrected max_length
+    city = models.CharField(max_length=255)  
+    
+
+    #one to one relationship
+    Customers = models.OneToOneField(Customers,on_delete=models.CASCADE, primary_key=True ) 
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(Cart,on_delete=models.CASCADE)
+    Products = models.ForeignKey(Products,on_delete=models.CASCADE)
+    quantitiy = models.PositiveSmallIntegerField()
+
+
+
+-------------------------------------------------------
 #Serializer=> Convert Model instance  into a Dictionary.
 -------------
+from rest_framework import serializers
+
+
+class ProductSerializer(serializers.Serializer):
+
+    # id = serializers.IntegerField()
+    title = serializers.CharField(max_length= 255)
+    unit_price = serializers.DecimalField(max_digits=6, decimal_places=2)
+
+---------------------------
+store::urls.py => 
+---------------------------
+from django.urls import path
+from store import views
+
+urlpatterns = [
+    path('product_list/',views.product_list,name='product_list' ),
+    # path('product/<int:id>/',views.product,name='product' ),
+    path('product/<str:sku>/', views.product, name='product'),
+
+]
+---------------------------
+---------------------------
+store::views.py=> 
+------------------
+from django.shortcuts import render
+from django.http import HttpResponse
+
+
+from rest_framework.decorators import api_view 
+from rest_framework.response import Response 
+from store.models import Products
+from store.serializers import ProductSerializer
+@api_view()
+def product_list(request):
+    return Response("Ok")
+
+# @api_view()
+# def product(request,sku):
+#     product = Products.objects.get(pk=sku)
+#     serializer = ProductSerializer(product)
+
+#     return Response(serializer.data) #dajango autometically convert the data to json formate.
+
+
+@api_view()
+def product(request, sku):
+    try:
+        product = Products.objects.get(pk=sku)
+        serializer = ProductSerializer(product)
+        return Response(serializer.data)
+    except Products.DoesNotExist:
+        return Response({"error": "Product not found"}, status=404)
+
+---------------------------
+---------------------------
+
+-------------------------------------------------------------------------------------------------------------
+------------------------Add custom field in serializer: not exit in Models feilds.--------------------
+-------------------------------------------------------------------------------------------------------------
+store::serializers.py=> 
+=========================
+from decimal import Decimal
+from rest_framework import serializers
+from store.models import Products
+
+
+class ProductSerializer(serializers.Serializer):
+
+    # id = serializers.IntegerField()
+    title = serializers.CharField(max_length= 255)
+    price = serializers.DecimalField(max_digits=6, decimal_places=2, source='unit_price') #custome name price => comes from unit_prime -> product(model)
+
+    price_with_tax = serializers.SerializerMethodField(method_name='calculate_tax')
+
+    def calculate_tax(self, product:Products):
+        return product.unit_price * Decimal(1.1)
+
+-------------------------------------------------------------------------------------------------------------
+--------------------------------serializer relationship-----------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+Way-1=> product serializer relationship with collections. 
+-----------------------------------------
+from decimal import Decimal
+from rest_framework import serializers
+from store.models import Products,Collections
+
+
+class ProductSerializer(serializers.Serializer):
+    #here user Product models vaibale as default.
+
+    # id = serializers.IntegerField()
+    title = serializers.CharField(max_length= 255)
+    price = serializers.DecimalField(max_digits=6, decimal_places=2, source='unit_price') #custome name price => comes from unit_prime -> product(model)
+    
+    #relations with collectionsmodels , way1=> 
+    collections = serializers.PrimaryKeyRelatedField(
+        queryset = Collections.objects.all()
+    )
+
+
+    price_with_tax = serializers.SerializerMethodField(method_name='calculate_tax')
+
+    def calculate_tax(self, product:Products):
+        return product.unit_price * Decimal(1.1)
+    
+
+
+-------------------------------------------
+way-2 to 4 together.=> 
+-------------------------------------------
+store::serializers.py=> 
+------------------------
+from decimal import Decimal
+from rest_framework import serializers
+from store.models import Products,Collections
+
+
+
+# class CollectionsSerializer(serializers.Serializer):
+#     id = serializers.IntegerField() #django auto primary key
+#     title = serializers.CharField(max_length= 255)
+
+class ProductSerializer(serializers.Serializer):
+    #here user Product models vaibale as default.
+
+    # id = serializers.IntegerField()
+    title = serializers.CharField(max_length= 255)
+    price = serializers.DecimalField(max_digits=6, decimal_places=2, source='unit_price') #custome name price => comes from unit_prime -> product(model)
+    
+    #relations with collectionsmodels , way1=> --------------------------------
+    # collections = serializers.PrimaryKeyRelatedField(
+    #     queryset = Collections.objects.all()
+    # )
+    #end===============================================
+
+    #relations with collections models , way2=>------------------------------------
+    # collections = serializers.StringRelatedField()
+    # end===============================================
+
+
+    #relations with collectionsmodels , way3=>------------------------------------
+    # collections = CollectionsSerializer()
+    # end===============================================
+
+    #relations with collectionsmodels , way4=>------------------------------------
+    #if click the collection then go to collection-detials views.+Product_list views also
+
+    collections = serializers.HyperlinkedRelatedField(
+        queryset = Collections.objects.all(),
+        view_name='collection-detials'
+    )
+    # end===============================================
+
+    price_with_tax = serializers.SerializerMethodField(method_name='calculate_tax')
+
+    def calculate_tax(self, product:Products):
+        return product.unit_price * Decimal(1.1)
+    
+
+
+
+
+
+-------------------------------------------
+store::urls.py=>
+-----------------
+from django.urls import path
+from store import views
+
+urlpatterns = [
+    path('product_list/',views.product_list,name='product_list' ),
+    # path('product/<int:id>/',views.product,name='product' ),
+    path('product/<str:sku>/', views.product, name='product'),
+    path('collections/<int:pk>/', views.collection, name='collection-detials'), # serializer method - 4 . 
+
+]
+-------------------------------------------
+-------------------------------------------
+store::views.py=>
+-------------------
+from django.shortcuts import render
+from django.http import HttpResponse
+
+
+from rest_framework.decorators import api_view 
+from rest_framework import generics
+from rest_framework.response import Response 
+from store.models import Products,Collections
+from store.serializers import ProductSerializer
+
+
+
+@api_view()
+def product_list(request):
+    products = Products.objects.select_related('collections').all()
+    serializer = ProductSerializer(products, many=True, context={'request': request})
+    return Response(serializer.data)
+
+
+# @api_view()
+# def product(request,sku):
+#     product = Products.objects.get(pk=sku)
+#     serializer = ProductSerializer(product)
+
+#     return Response(serializer.data) #dajango autometically convert the data to json formate.
+
+
+@api_view()
+def product(request, sku):
+    try:
+        product = Products.objects.get(pk=sku)
+        serializer = ProductSerializer(product)
+        return Response(serializer.data)
+    except Products.DoesNotExist:
+        return Response({"error": "Product not found"}, status=404)
+
+
+@api_view()
+def collection(request,pk):
+    return Response('ok')
+    
+
+
+
+-------------------------------------------
+-------------------------------------------
+
+
+
+-------------------------------------------------------------------------------------------------------------
+------------------------------------Serializer Model fields-------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+In Serializer data filed comes form Modles fields ['fieldName','add_custom_fileds']. if we want to use custom field 
+belows model fileds , user custom_felids = [unit_price] 
+-------------------------------------------
+store::serializer.py=> 
+----------------------
+from decimal import Decimal
+from rest_framework import serializers
+from store.models import Products,Collections
+
+
+
+# class CollectionsSerializer(serializers.Serializer):
+#     id = serializers.IntegerField() #django auto primary key
+#     title = serializers.CharField(max_length= 255)
+
+class ProductSerializer(serializers.ModelSerializer):
+    
+
+    class Meta : 
+        model = Products
+        fields = ['title', 'price', 'collections','price_with_tax'] #first search fields form model , if not find . then search => price , collections, tax_with price
+
+  
+    price = serializers.DecimalField(max_digits=6, decimal_places=2, source='unit_price') #custome name price => comes from unit_prime -> product(model)
+    
+    collections = serializers.HyperlinkedRelatedField(
+        queryset = Collections.objects.all(),
+        view_name='collection-detials'
+    )
+
+    price_with_tax = serializers.SerializerMethodField(method_name='calculate_tax')
+
+    def calculate_tax(self, product:Products):
+        return product.unit_price * Decimal(1.1)
+    
+
+
+
+-------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+--------------------------------------Deserializer : Post (add product to DB)+CRUD--------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+
+from django.shortcuts import render
+from django.http import HttpResponse
+
+
+from rest_framework.decorators import api_view 
+from rest_framework import generics
+from rest_framework.response import Response 
+from store.models import Products,Collections
+from store.serializers import ProductSerializer
+
+
+
+@api_view(['GET','POST'])
+def product_list(request):
+    if request.method == 'GET':
+        products = Products.objects.select_related('collections').all()
+        serializer = ProductSerializer(products, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+
+    elif request.method=='POST': #deserializer is send data to DB with POST.
+        serializer = ProductSerializer(data= request.data)
+        # serializer.validated_data
+        return Response('ok')
+
+
+
+
+-------------------------------------------------------------------------------------------------------------
+-------------------------------------------Data Validations-------------------------------------------
+--------------------------serializer.is_valid(raise_exception=True)------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+from django.shortcuts import render
+from django.http import HttpResponse
+
+
+from rest_framework.decorators import api_view 
+from rest_framework import generics
+from rest_framework.response import Response 
+from store.models import Products,Collections
+from store.serializers import ProductSerializer
+
+
+
+@api_view(['GET','POST'])
+def product_list(request):
+    if request.method == 'GET':
+        products = Products.objects.select_related('collections').all()
+        serializer = ProductSerializer(products, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+
+    elif request.method=='POST': #deserializer is send data to DB with POST.
+        serializer = ProductSerializer(data= request.data)
+        serializer.is_valid(raise_exception=True) #if Error => then raise Error massage.
+        serializer.validated_data
+        return Response('ok')
+
+
+# @api_view()
+# def product(request,sku):
+#     product = Products.objects.get(pk=sku)
+#     serializer = ProductSerializer(product)
+
+#     return Response(serializer.data) #dajango autometically convert the data to json formate.
+
+
+@api_view()
+def product(request, sku):
+    try:
+        product = Products.objects.get(pk=sku)
+        serializer = ProductSerializer(product)
+        return Response(serializer.data)
+    except Products.DoesNotExist:
+        return Response({"error": "Product not found"}, status=404)
+
+
+@api_view()
+def collection(request,pk):
+    return Response('ok')
+    
+
+
+
+-------------------------------------------------------------------------------------------------------------
+--------------------------------------Product : create and Update & DELETE-----------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+store::views.py=> 
+------------------
+from django.shortcuts import render
+from django.http import HttpResponse
+
+
+from rest_framework.decorators import api_view 
+from rest_framework import generics
+from rest_framework.response import Response 
+from store.models import Products,Collections
+from store.serializers import ProductSerializer
+from django.shortcuts import get_object_or_404
+from rest_framework.status import HTTP_200_OK,HTTP_201_CREATED,HTTP_204_NO_CONTENT
+from django.db.models import Count
+
+
+
+@api_view(['GET','POST'])
+def product_list(request):
+    if request.method == 'GET':
+        products = Products.objects.select_related('collections').all()
+        serializer = ProductSerializer(products, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+
+    elif request.method=='POST': #Create Product----------------------------------------
+        serializer = ProductSerializer(data= request.data)
+        serializer.is_valid(raise_exception=True) #if Error => then raise Error massage.
+        serializer.save()
+        return Response(serializer.data, status=HTTP_200_OK)
+
+
+
+@api_view(['GET', 'PUT','DELETE'])
+def product_details(request, sku): #Read/Update/Delete Product----------------------------------------
+    product = get_object_or_404(Products, pk=sku)
+
+    if request.method == 'GET':
+        serializer = ProductSerializer(product)
+        return Response(serializer.data)
+    elif request.method == 'PUT': 
+        serializer = ProductSerializer(product, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=HTTP_201_CREATED)
+    elif request.method =='DELETE':
+        if product.orderItems.count() > 0:  #aggregations-> count(), ORM query fn-> Count().
+            return Response({"error": "product can't be delete cause in orderitem"},)
+        product.delete()
+        return Response(status=HTTP_204_NO_CONTENT)
+
+
+
+@api_view()
+def collection(request,pk):
+    return Response('ok')
+    
+
+
+------------------------------
+store::urls.py=> 
+------------------------------
+from django.urls import path
+from store import views
+
+urlpatterns = [
+    path('product_list/',views.product_list,name='product_list' ),
+    path('product/<str:sku>/', views.product_details, name='product'),
+    path('collections/<int:pk>/', views.collection, name='collection-detials'), # serializer method - 4 . 
+
+]
+------------------------------
+------------------------------
+store::serializer.py=>
+------------------------------
+from decimal import Decimal
+from rest_framework import serializers
+from store.models import Products,Collections
+
+class ProductSerializer(serializers.ModelSerializer):
+    
+
+    class Meta : 
+        model = Products
+        fields = ['title', 'price', 'collections','price_with_tax','inventory','describtion'] #first search fields form model , if not find . then search => price , collections, tax_with price
+
+  
+    price = serializers.DecimalField(max_digits=6, decimal_places=2, source='unit_price') #custome name price => comes from unit_prime -> product(model)
+    price_with_tax = serializers.SerializerMethodField(method_name='calculate_tax')
+
+    def calculate_tax(self, product:Products):
+        return product.unit_price * Decimal(1.1)
+    
+
+
+
+
+------------------------------
+------------------------------
+store::models.py=> 
+-----------------------
+from django.db import models
+
+# Create your models here.
+
+
+class Promotions(models.Model):
+    describtion = models.CharField(max_length=255)
+    discount = models.FloatField()
+
+
+class Collections(models.Model):
+    title = models.CharField(max_length=255)
+    featured_product = models.ForeignKey('Products',on_delete=models.SET_NULL, null=True, related_name='+')
+
+    def __str__(self):
+        return self.title 
+    
+    class Meta:
+        ordering = ['title']
+
+    
+
+
+class Products (models.Model):
+    slug = models.SlugField()
+    sku = models.CharField(max_length=10,primary_key=True)
+    title = models.CharField(max_length=255)
+    describtion = models.TextField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2) 
+    inventory = models.IntegerField()
+    last_update = models.DateTimeField(auto_now=True)
+    collections = models.ForeignKey(Collections,on_delete=models.PROTECT) # if want to delete Collections , Before must be delete Products .
+    promotions = models.ManyToManyField(Promotions)
+
+    def __str__(self) -> str:
+        return self.title
+    
+    class Meta: 
+        ordering = ['title']
+
+
+
+
+class Customers(models.Model):
+    MEMBERSHIP_BRONZE = 'B'
+    MEMBERSHIP_SLIVER = 'S'
+    MEMBERSHIP_GOLD = 'G'
+    MEMBERSHIP_CHOICE = [
+    ('MEMBERSHIP_BRONZE','Bronze'),
+    ('MEMBERSHIP_SLIVER','Silver'),
+    ('MEMBERSHIP_GOLD','Gold'),
+    ]
+
+    first_name = models.CharField(max_length=255)
+    last_name = models.CharField(max_length=255)
+    email = models.EmailField(unique=True)
+    phone = models.IntegerField()
+    brith_date = models.DateField(null=True)
+    membership = models.CharField(max_length=17, choices=MEMBERSHIP_CHOICE, default=MEMBERSHIP_BRONZE)
+    
+    def __str__(self):
+        return f"{self.first_name} {self.last_name }"
+
+
+    class Meta:
+        ordering = ['first_name', 'last_name']
+
+
+
+class Order(models.Model):
+    PAYMENT_STATUS_PENDING = 'P'
+    PAYMENT_STATUS_COMPLETE = 'C'
+    PAYMENT_STATUS_FAILD = 'F'
+    PAYMENT_STATUS_CHOICE = [
+        ('PAYMENT_STATUS_PENDING','P'),
+        ('PAYMENT_STATUS_COMPLETE','C'),
+        ('PAYMENT_STATUS_FAILD','F'),
+    ]
+    place_order = models.DateTimeField(auto_now_add=True)
+    payment_status = models.CharField(
+    max_length=23, choices=PAYMENT_STATUS_CHOICE, default=PAYMENT_STATUS_PENDING
+    )
+
+    Customers = models.ForeignKey(Customers,on_delete=models.PROTECT) #if accidently delete the Customers , we don't delete the order .
+
+class OrderItems(models.Model):
+    order = models.ForeignKey(Order,on_delete=models.PROTECT)
+    Products = models.ForeignKey(Products,on_delete=models.PROTECT, related_name='orderItems')
+    quentity = models.PositiveSmallIntegerField()
+    unit_price = models.DecimalField(max_digits=6,decimal_places=2)
+
+class Cart(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Address(models.Model):
+    street = models.CharField(max_length=255)  # Corrected max_length
+    city = models.CharField(max_length=255)  
+    
+
+    #one to one relationship
+    Customers = models.OneToOneField(Customers,on_delete=models.CASCADE, primary_key=True ) 
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(Cart,on_delete=models.CASCADE)
+    Products = models.ForeignKey(Products,on_delete=models.CASCADE)
+    quantitiy = models.PositiveSmallIntegerField()
+------------------------------
+------------------------------
 
 
 -------------------------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+
+
+
