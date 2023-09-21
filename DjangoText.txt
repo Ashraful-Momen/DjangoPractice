@@ -1,0 +1,702 @@
+install python 
+install python env 
+>>> python -m venv myenv >>> myenv >>> Script>>> activate >>>
+cd StoreFront>>> pip install django >>> django-admin startproject StoreFront
+>>> pip install pillow , cleanup 
+>>> python manage.py runserver 8000
+----------------------------------------------------------------------
+>>> python manage.py create playground | and add to setting.py 
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+for Debugging Dango app=> 
+---------------------------
+from django.shortcuts import render
+from django.http import HttpResponse 
+# Create your views here.
+
+def calculate():
+    x = 1 
+    y = 2
+    return x
+
+def say_hello(request):
+ =>   x = calculate()   <== create a debugging point here then click run and debugging. reload the page check the varibale. watch the function and variable also by clicking the debugging button -> , down arrow (v)
+      return render(request, 'hello.html',{"name":"Shuvo"})
+    # return HttpResponse("Hello World")
+---------------------------
+-------------------------------------------------------------------------------------------------------
+----------------------------------------install Django Debugging---------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------
+>>> install django-debugs-tools and | set up all setting  then run the server ....
+--------------------
+
+
+--------------------------------------------- <== models==> ----------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+*** if we not define the primary key , Django will set auto primary key.
+------------------------------------------------------------------------
+
+parent Model=> Must have to uppder position  (default Django User Model)
+---------------
+child Model => Must have to lower position from Parent Model (user_Profile Model)
+---------------
+==================================================================
+Parent Model 
+------------
+   |
+   |
+   |
+   V
+Child Model .
+-------------
+*** if the parent models not oriented or not in upper positions then use => models.ForiegnKey('ParentModelsName').
+====================================================================================
+
+#one to one Relationship => Parent Model (customer) => models.OneToOneField => Child Model (Address) [Every Address model has One Customer]
+-------------------------
+#one to many Relationship => Parent Model (Cart)  => models.ForiegnKey => Child Model (Products) [***Django Create Reverse Relation auto -> ]
+-------------------------
+#many to many Relationship => Parent Model(Promotions/discount) => models.ManyToMany => Child Model(Products)
+--------------------------------------------------------------------------------------------------------
+#Collection(Parent) has multiple -> Products(child)
+
+#Customer has multiple -> Orders
+
+#Orders has multiple -> Items
+
+#Cart has multiple -> Items 
+------------------------------------on_delet = models.CaseCade,Set_Default,Set_null,Protect---------------------------------------------------------
+# on_delet=models.Protect (means => delete first child model , 
+then can able to delete Parent Model, on_delete=models.Set_Default  => 
+if delete parent class default value will be autometically set , and Set_null = for null values )
+-------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------
+*** circular Dependency Error (Parent + Child class -> use ForiegnKey) => when products , collections Dependency each other 
+------------------------------ 
+                                Django created Reverse Relationship auto ... for avoiding the error we have to use Paret Mode 
+                                [(related_name ='+') ->means -> don't created the reverse Relationship] 
+    example=> class Collections(models.Model):
+    title = models.CharField(max_length=255)
+    feature_product = models.ForeignKey('Product',on_delete=models.SET_NULL, null=True, related_name='+')
+
+-------------------------------------------------------------------------------------------------------------------
+Generic Relationship => use Tag model that can use setting =>  django.contrib.contenttypes import contenttypes
+----------------------- Models that means in whole apps User can Tag any content => product,images,video ,Artical...
+
+example of code- > 
+------------------------------------
+from django.db import models
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.auth.models import User 
+
+# Create your models here.
+
+#Give the Like in Random items => 
+----------------------------------
+class LikeItem(models.Model):
+    users = models.ForeignKey(User , on_delete=models.CASCADE) 
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey()
+
+
+
+# Give the tag in randome items=> 
+==================================
+
+class Tag(models.Model):
+    tag = models.CharField(max_length=255)
+
+class TaggItem(models.Model):
+    tag = models.ForeignKey(Tag , on_delete=models.CASCADE) 
+
+    #Dynamicly catch the object we need 3 thing : 
+    # 1. ContentType (Article, Video, Product ... )
+    # 2. ID (Get From DataBase Primary Keys) 
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    # 3.if the primary key is not positive integer then use => GenericKey
+    content_object = GenericForeignKey()
+-------------------------------------------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------------------------------------------
+
+-------------------------------------------------sqliteDb------------------------------------------------------------------
+goto vscode extension=> sqlite >>> install >>> clt+shift+p >>> sqlite open database . 
+----------------------- >>> select the files and minimize then show > sqlite explorer.
+                        >>> we can see all those data table > after migrating and migrations.
+                        >>> select Django_migration_table >>> showtable >>> 
+                        >>> python manage.py sqlmigrate table_name  003(sql_number of migratins file)
+                        >>> python manage.py sqlmigrate store 0003
+
+                        -------------------------result-----------------------------------
+                        (myenv) I:\Django Code Practice From Mosh\1.Django First Part\1.StoreFont>python manage.py sqlmigrate store 0003
+                        BEGIN;
+                        --
+                        -- Add field slug to product
+                        --
+                        CREATE TABLE "new__store_product" ("slug" varchar(50) NOT NULL, "sku" varchar(10) NOT NULL PRIMARY KEY, "title" varchar(255) NOT NULL, "describtion" text NOT NULL, "inventory" integer NOT NULL, "last_update" datetime NOT NULL, "collections_id" bigint NOT NULL REFERENCES "store_collections" ("id") DEFERRABLE INITIALLY DEFERRED, "unit_price" decimal NOT NULL);
+                        INSERT INTO "new__store_product" ("sku", "title", "describtion", "inventory", "last_update", "collections_id", "unit_price", "slug") SELECT "sku", "title", "describtion", "inventory", "last_update", "collections_id", "unit_price", '-' FROM "store_product";
+                        DROP TABLE "store_product";
+                        ALTER TABLE "new__store_product" RENAME TO "store_product";
+                        CREATE INDEX "store_product_slug_6de8ee4b" ON "store_product" ("slug");
+                        CREATE INDEX "store_product_collections_id_dd655a77" ON "store_product" ("collections_id");
+                        COMMIT;
+
+-------------------------------------------------------------------------------------------------------------------
+---------------------------------------------Mysql----------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+install mysqlclient packages and setup the settings
+----------------------------------------------------
+setting.py=> 
+--------------
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'storefront',
+        'HOST':'localhost',
+        'PORT':'3306',
+        'USER': 'root',
+        'PASSWORD': '',
+         'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",  #using this line -> avoiding the db error waring...
+        },
+        
+    }
+}
+
+------------------------------------------------
+------------------------------------------------
+for running the Raw sql Query > need to empty migrations 
+
+>>> python manage.py makemigrations store --empty 
+
+then open the migrations file from >>> store >> migrations>> open the last migrations files.
+------------------------------------------------
+---------------------------------------------------
+write Raw Sql query => inside the migratins array => 
+--------------------------------------------------
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('store', '0004_customer_store_custo_first_n_a7e990_idx_and_more'),
+    ]
+
+    operations = [
+        migrations.RunSQL("""
+            INSERT INTO store_collections (title) VALUES ('collectins1')
+        """,
+        """
+            DELETE FROM store_collections WHERE title='collections1'
+        """)
+    ]
+
+>>> python manage.py migrate 
+------------------------------------------------
+------------------------------------------------
+if we want to unchange the migrations then we can back => 
+----------------------------------------------------
+>>> python mangae.py migrate tableName lastPreviousMigrationsFileNumbers.
+>>> python manage.py migrate store 0004 
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+----------------------------------------Dummy Data Generate in MySql---------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+goto website for generation the dummy data => https://mockaroo.com/
+------------------------------------------------------------------------------------------
+count how much data in sql table , raw sql command 
+=> SELECT COUNT(*) FROM store_customers
+run the command on db directly
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+#to store seed.sql data into DB ...
+-----------------------------------
+
+change the root db password from db first. 
+then > create storefront database 
+
+>>> first close all session form DB . 
+
+
+>>> drag and drop seed.sql into Sql query command and select go 
+>>> then >>> python manage.py migrate 
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+----------------------------------------------ORM command Django---------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+
+
+Every Model in Django attributes is called Objects.=> 
+-------------------------------------------------------
+get all data ->  Model.objects.all()
+get single data ->  Model.objects.get(pk = 1) #django autometically get primary key.
+get filter data ->  Model.objects.filter()
+-------------------------------------------
+if product not in DB -> Model.obejects.get(1) | this command generate a error , To handle the error 
+>>> in views import >>> from django.core.exceptions import ObjectDoesNotExist . and use (try+catch -> method in views)
+
+either use to sole-> Model.objects.filter(1).first()
+or use-> Model.Objects.filter(1).exits() 
+-----------------------------------------
+
+
+
+--------------------------------------------Math expressions: -----------------------------------------------------------------------
+not use=> Model.objects.filter(unit_price > or < 1),Error,so use alternative
+------------
+ Model.objects.filter(unit_price__gt=1) |
+  [keyward__args] __gt = greater than ; __gte = greater than equels.
+  similarly __lt = less than , __lte = less than equal
+
+for range filter use=> 
+-------------------------
+Model.objects.filter(coloumnName__use->column/gt/range/id/startwith/etc/year/month/day__moreLookupConditions__range=(1,20))
+
+Model.objects.filter(title__startswith='hello')
+--------------------------------------------------------------------------------------------------
+apply filter conditions => Model.objects.filter(price__id__gt=10)
+
+apply filter conditions => Model.objects.filter(price__sku__range=(1,10))
+--------------------------------------------------------------------------------------------------
+aplly filter conditions => Model.objects.filter(range=(1,10))
+--------------------------------------------------------------------------------------------------
+find a title which contains coffe => Model.objects.filter(title__contains='coffe')
+--------------------------------------------------------------------------------------------------
+last_update with 2020 => Model.objects.filter(last_update__year/date/month=2021)
+--------------------------------------------------------------------------------------------------
+describtion => Model.objects.filter(describtion__null=True)
+--------------------------------------------------------------------------------------------------
+all the product inventory<10 and prince < 100 => Model.objects.filter(inventory__lt=10, prince__lt=1000)
+or
+all the product inventory<10 and prince < 100 => Model.objects.filter(inventory__lt=10).filter(prince__lt=1000)
+--------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------
+# django.db.models import Q | here 'Q' means queryset and use use bitway oparetors (&,|,~ -> and, or, not)
+
+all the product inventory<10 and prince < 100 => Model.objects.filter(Q(inventory__lt=10) & Q(prince__lt=1000))
+
+
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+# django.db.models import Q ,F| here 'F' means queryset referance others
+
+all the product store.inventory == price . In compaier we get error , if we varibale type (int/str)change
+that's why use => Model.objects.filter(Q(inventory=F('price')))
+that's why use => Model.objects.filter(Q(inventory=F('collections__id')))
+-------------------------------------------------------------------------------------------------------------------
+------------------------------------------------Sorting-------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+sorting_Order=> Models.objects.orderBy('column_name') | accending order . 
+sorting_Order=> Models.objects.orderBy('-column_name') | deccending order . use('-')
+sorting_Order=> Models.objects.filter('collections__id=1').orderBy('unit_Price')
+
+
+sorting_Order=> Models.objects.filter('collections__id=1').orderBy('unit_Price') | or use 
+
+sorting_Order as first product => Models.objects.filter('collections__id=1')[0] |
+sorting_Order as first product => Models.objects.earliest('collections__id=1')[0] | return an object 
+sorting_Order as first product => Models.objects.latest('collections__id=1')[0] | deccending product get update price
+
+-------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------Limited Result--------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+get 5 data ->  Model.objects.all()[:5] | reutrn 0 to 4 , total 5. slicing ....
+-------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------get object from 2 tables--------------------------------------------
+get  data 2 tables ->  Product.objects.values('id','title','collections__id') | Product table .join(Collections_table),then return dictionery.
+get  data 2 tables ->  Product.objects.values_list('id','title','collections__id') | Product table .join(Collections_table),then return tuple.
+
+get  data  ->  Product.objects.values('id','title').distinc() | .distinc() -> return no duplicate items.
+
+
+--------------------------------------------------------------------------------------------------------------
+
+
+ -> OrderItems.objects.values(id__in=Product.objects.values('id','title').distinc() ) #return as object
+# Filter OrderItems based on product IDs=> ----------------
+    It looks like you're trying to retrieve a list of Product IDs and titles and then use that list to filter OrderItems
+    
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+***cautions if use => Product.objecetes.Only('column1','column2') <- query then use only those 2 column . if use others collsom of 
+the Product then generate extra sql query for every single products.
+
+
+Product.objecetes.difer('column1') -> get all products with out 'column1' if write {{product.column1}} in templates
+then extra query will be generated as well as only also do .
+
+-------------------------------------------------------------------------------------------------------------------
+-----------------------------------------Product.obejects.tableTotableTraversal()--------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+.select_related() -> access 1 to other 1 table data easyly , when 1 to N(multiple) table data need 
+use .prefetch_related().all()
+
+if we use => products = Product.obejects.all() -> 
+and use in templates=> {{products.title}} and {{products.collections.title}} <- Product has a relation with 
+collections table , then django create thousand of SQLquery for every obejects. cause we want to access 
+collections_table data By product_table .
+
+#to solve this issu we have to use =>  Product.obejects.select_related('collections_table').all()
+------------------------------------------------------------------------------------------------
+we know Products table have relations with multiple table , if we want to access multiple tables data with product 
+table then we have to use => Product.obejects.prefetch_related('discount_table').select_related('collections_table').all()
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+get last 5 order form with customer data => querySet = Order.objects.select_related('customers_table').orderBy('-placed_at')[:5]
+get last 5 order form with customer data + OrderItems + Products=> querySet = Order.objects.prefetch_related(orderItem_table__Product)select_related('customers_table').orderBy('-placed_at')[:5]
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------aggregates=> Models------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+import in views => 
+-------------------
+
+from django.db.models.aggregates import Count,Max,Min,Avg,Sum
+
+
+find collectins_id_1_product with min price =>
+------------------------------------------
+ product = Product.obejcts.filter('collections_id=1').aggregates(
+    count=Count('id'), min_price=Min('unit_Price')
+)
+
+
+
+
+-------------------------------------------------------------------------------------------------------------------
+--------------annotate(ReceiveAsExpression=>Value/F('column')): Insert_table_column/Triggering------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+
+
+from django.db.models import Value,F 
+querySet = Customer.objects.annotate(new_id=Value(default='True')) # if directly use True then getting error .
+
+tha't why convert True as expression 
+
+in customer table add new column = new_id wich start with 2=> 
+---------------------------------------------
+
+from django.db.models import Value,F 
+
+querySet = Customer.objects.annotate(new_id=F('id')+1)
+---------------------------------------------
+
+if we want to concate Customers FullName = 'first_name'+'last_name' . 
+
+
+from django.db.models import Value,F ,Func | here Func means DataBase function & F means REFERENCES column of tables.
+from django.db.models.functions import Concate | here Func means DataBase function & F means REFERENCES column of tables.
+--------------------------------------------
+querySet = Customer.objects.annotate(full_name = Func(F('first_name') + Value(' ')+ F('last_name'),Func='Concate'))
+
+if we want to use spaec between FirstName + space + LastName => use Value(" ")
+---------------------anohterMehtods-------------------------------------------
+
+querySet = Customers.objects.annotate(full_name=Concate('first_name',Value(' '), 'last_name'))
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+#find the orders of each customers
+
+querySet = Customer.objects.annotate(Count('order_set')) # Error , Customer & Order has reverse relations between them.
+so use alternative 'order_set' to order => querySet = Customer.objects.annotate(Count('order'))
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------#discount price: ------------------------------------------------------------------------
+
+discount = product_price * .08(discount_value) ; get Error => decimal * Floating value 
+=> to solve import ExpressionWrapper & use out_set (constructor)
+
+---------------------------------------------
+from django.db.models import ExpressionWrapper , F , Value , Func , DecimalField
+
+
+# Create your views here.
+def productAll(request):
+    discounted_price = ExpressionWrapper(F('unit_price')*.08, output_field=DecimalField())
+    products = Product.objects.annotate(
+        discounted_price = discounted_price
+    )
+-------------------------------------------------------------------------------------------------------------------
+-----------------------------------------Query Generic Relationship(ContentType)-----------------------------------
+-------------------------------------------------------------------------------------------------------------------
+#for Like, commpent , tags any Product, video or any content => 
+---------------------------------------------------------------
+in contentType Table => 
+contentType_Id, app_level(name of app ), app_Model
+for tagging with store=> Product table we need object_id(product_id)
+
+#from django.contrib.contenttypes.models import ContentType | import in views first ...
+
+from django.contrib.contenttypes.models import ContentType
+from store.models import Product
+from taqs.models import TaggItem
+
+
+def productAll(request):
+    conten_type = ContentType.objects.get_for_model(Product)
+    querySet = TaggItem.objects.filter(
+        conten_type = conten_type
+        object_id = 1
+    )
+
+    return render(request, 'hello.html',{"name":"Shuvo","querySet":querySet})
+
+    --------------------------------------another easy way-------------------------------------
+#goto Tags.Model=> 
+----------------------
+# Create your models here.
+class TagItemMangar(models.Manager):  #add this codes
+    def get_tags_for(object_type,objec_id):
+
+        conten_type = ContentType.objects.get_for_model(object_type)
+    
+        querySet = TaggItem.objects \
+                            .select_related('tag') \
+                            .filter(
+                                    conten_type = conten_type,
+                                    object_id = objec_id
+                                    )
+
+
+
+class Tag(models.Model):
+    tag = models.CharField(max_length=255)
+
+class TaggItem(models.Model):
+    objects = TagItemMangar() #add this code 
+
+    tag = models.ForeignKey(Tag , on_delete=models.CASCADE) 
+
+    #Dynamicly catch the object we need 3 thing : 
+    # 1. ContentType (Article, Video, Product ... )
+    # 2. ID (Get From DataBase Primary Keys) 
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    # 3.if the primary key is not positive integer then use => GenericKey
+    content_object = GenericForeignKey()
+
+
+
+-------------------------------------------------------
+goto views => playground.views=>
+---------------------------------
+
+from django.shortcuts import render
+from django.contrib.contenttypes.models import ContentType
+from store.models import Product
+from taqs.models import TaggItem,TagItemMangar,Tag
+from store.models import Product,Customer
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models.aggregates import Count,Max,Min,Avg,Sum
+from django.db.models import ExpressionWrapper , F , Value , Func , DecimalField
+
+
+# Create your views here.
+def productAll(request):
+    TaggItem.objects.get_tags_for(Product,1)
+
+    
+
+    return render(request, 'hello.html',{"name":"Shuvo","querySet":TaggItem})
+
+
+
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------Query Caching------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+goto views => playground.views=>
+---------------------------------
+
+from django.shortcuts import render
+from django.contrib.contenttypes.models import ContentType
+from store.models import Product
+from taqs.models import TaggItem,TagItemMangar,Tag
+from store.models import Product,Customer
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models.aggregates import Count,Max,Min,Avg,Sum
+from django.db.models import ExpressionWrapper , F , Value , Func , DecimalField
+
+
+# Create your views here.
+def productAll(request):
+    querySet = Product.obejcts.all()
+    
+    list(querySet) #make a list and store in Django cache ...
+    list(querySet) #now Django read form cache
+    querySet[0] #read the first object from query set cache
+
+    
+
+    return render(request, 'hello.html',{"name":"Shuvo","querySet":TaggItem})
+
+
+
+-------------------------------------------------------------------------------------------------------------------
+--------------------------------------------Create Object-----------------------------------------------------------------------
+
+from django.shortcuts import render
+from django.contrib.contenttypes.models import ContentType
+from store.models import Product
+from taqs.models import TaggItem,TagItemMangar,Tag
+from store.models import Product,Customer
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models.aggregates import Count,Max,Min,Avg,Sum
+from django.db.models import ExpressionWrapper , F , Value , Func , DecimalField
+from store.models import Collections
+
+
+# Create your views here.
+def productAll(request):
+    
+    collections = Collections()
+    collections.title = 'Hello add new collections'
+    collections.feature_product=Product(pk=1)
+    collections.save()
+
+    #another method but not efficient:
+    collections.objects.create( title='Hello',feature_product= 'asdfafa')
+
+
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------Update Objects------------------------------------------------------------------------
+
+from django.shortcuts import render
+from django.contrib.contenttypes.models import ContentType
+from store.models import Product
+from taqs.models import TaggItem,TagItemMangar,Tag
+from store.models import Product,Customer
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models.aggregates import Count,Max,Min,Avg,Sum
+from django.db.models import ExpressionWrapper , F , Value , Func , DecimalField
+from store.models import Collections
+
+
+# Create your views here.
+def productAll(request):
+    
+    collections = Collections.objects.get(pk=id)
+    collections.title = 'Hello add new collections'
+    collections.feature_product=None
+    collections.save()
+
+    #another method :
+    collections.objects.filter(pk=11).update( title='Hello',feature_product= 'asdfafa')
+
+
+    
+
+    return render(request, 'hello.html',{"name":"Shuvo","querySet":TaggItem})
+-------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------Delete Objects--------------------------------------------------------------------
+
+from django.shortcuts import render
+from django.contrib.contenttypes.models import ContentType
+from store.models import Product
+from taqs.models import TaggItem,TagItemMangar,Tag
+from store.models import Product,Customer
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models.aggregates import Count,Max,Min,Avg,Sum
+from django.db.models import ExpressionWrapper , F , Value , Func , DecimalField
+from store.models import Collections
+
+
+# Create your views here.
+def productAll(request):
+    
+    collections = Collections.objects.get(pk=id)
+    collections.delete()
+
+    #another method :
+    collections.objects.filter(id__gt=10).delete( )
+
+
+    
+
+    return render(request, 'hello.html',{"name":"Shuvo","querySet":TaggItem})
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+-----------------------------------------Transactions--------------------------------------------------------------------------
+sometimes we save multiple models objects together=> Oder() & OrderItems() . if 1 models get error then other models
+data not save (). it's called Transactions.
+---------------------------------------------
+
+from django.shortcuts import render
+from django.contrib.contenttypes.models import ContentType
+from store.models import Product,Order
+from taqs.models import TaggItem,TagItemMangar,Tag
+from store.models import Product,Customer,OrderItems
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models.aggregates import Count,Max,Min,Avg,Sum
+from django.db.models import ExpressionWrapper , F , Value , Func , DecimalField
+from store.models import Collections
+from django.db import transaction
+
+
+# @transaction.atomic()  | add here or 
+def productAll(request):
+    
+    #....other codes: 
+
+    with transaction.atomic(): #or add here,
+        order = Order()
+        order.customer_id = 1
+        order.save()
+
+        item = OrderItems()
+        item.order = order 
+        item.product_id = 1
+        item.quentity = 1
+        item.unit_price = 10
+
+        item.save()
+
+
+
+    
+
+-------------------------------------------------------------------------------------------------------------------
+------------------------------------------extecute Raq Sql Query-------------------------------------------------------------------------
+from django.shortcuts import render
+from django.contrib.contenttypes.models import ContentType
+from store.models import Product,Order
+from taqs.models import TaggItem,TagItemMangar,Tag
+from store.models import Product,Customer,OrderItems
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models.aggregates import Count,Max,Min,Avg,Sum
+from django.db.models import ExpressionWrapper , F , Value , Func , DecimalField
+from store.models import Collections
+from django.db import transaction
+from django.db import connection
+
+def productAll(request):
+    
+    
+    #execute the raw SQLquery=> --------------------------------
+
+    querSet = Product.objects.raw('SELECT * FROM CUSTOMER')
+
+    ##execute the raw SQLquery=> --------------------------------
+
+    with connection.cursor() as cursor: 
+        cursor.execute('write sql query here')
+        #or use alter native this line=> 
+        cursor.callproc('get__cutomer',[1,3,'a']) #better for use
+
+
+    
+
+    return render(request, 'hello.html',{"name":"Shuvo","querySet":TaggItem})
+
+
+------------------------------------------End ORM query section ------------------------------------------------------------------------
+
+
+if django not connect with db => 
+---------------------------------
+GRANT ALL PRIVILEGES ON storefront.* TO 'storefront'@'localhost';
+FLUSH PRIVILEGES;

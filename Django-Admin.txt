@@ -1,0 +1,231 @@
+#>>> python manage.py createsuperuser
+>>>> localhost/admin 
+
+----------------Model register in admin panel--------------------------
+
+change admin page heading => Project::urls.py => 
+------------------------------------------------
+from django.contrib import admin
+from django.urls import path, include
+from playground import views
+
+
+admin.site.site_header = "StoreFront "    #admin page heading 
+admin.site.index_title = "Admin"          #admin page title
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('',views.say_hello,name='index_page'),
+    path('playground/', include('playground.urls')),
+    path("__debug__/", include("debug_toolbar.urls")),
+]
+------------------------------------------------------------
+# show the collections in Django admin => 
+
+
+store::models.py=> 
+-----------------
+
+class Collections(models.Model):
+    title = models.CharField(max_length=255)
+    featured_product = models.ForeignKey('Products',on_delete=models.SET_NULL, null=True, related_name='+')
+
+    def __str__(self):
+        return self.title 
+    
+    class Meta:
+        ordering = ['title'] # accending order according to the title...
+
+
+------------------------------------------------------------------
+store::models.py=> Product show in Admin panel , with list of column , ordering , 
+-----------------
+from django.contrib import admin
+
+from . import models
+
+
+@admin.register(models.Products)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ['title', 'unit_price'] # show the title and unit_price in admin page
+    list_editable = ['unit_price'] #now can edit -> 'unit_price' column.
+    list_per_page = 10 #paginations .
+    ordering = ['title', 'unit_price'] #accending order with titel and followed by unit_price.
+
+
+@admin.register(models.Customers)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ['first_name', 'last_name', 'membership']
+    list_editable = ['membership']
+    list_per_page = 10
+    ordering = ['first_name', 'last_name']
+
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+store::admin.py=> 
+----------------------
+from django.contrib import admin
+
+from . import models
+
+
+@admin.register(models.Products)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ['title', 'unit_price', 'inventory_status'] # show the title and unit_price in admin page
+    list_editable = ['unit_price'] #now can edit -> 'unit_price' column.
+    list_per_page = 10 #paginations .
+    ordering = ['title', 'unit_price'] #accending order with titel and followed by unit_price.
+
+
+    #return inventory coloumn in admin panel as string : 
+    # if inventory is < 10 : show low or show 'high'
+
+
+    @admin.display(ordering='inventory') # show admin panael inventory as accending order.
+    def inventory_status(self, product): # this product varibale work with 'inventory_status' column.
+        if product.inventory < 10:
+            return 'Low'
+        return 'Ok'
+
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+store.admin.py=> #if we create a custom coloumn name then we have to create a functions also ...
+----------------
+from django.contrib import admin
+
+from . import models
+
+
+@admin.register(models.Products)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ['title', 'unit_price', 'inventory_status', 'collections_title'] # show the title and unit_price in admin page, product has a link with collections table with collections column.
+    list_editable = ['unit_price'] #now can edit -> 'unit_price' column.
+    list_per_page = 10 #paginations .
+    ordering = ['title', 'unit_price'] #accending order with titel and followed by unit_price.
+    list_select_related = ['collections'] # Product Fk with Collections , collections form collections table in Product table
+
+
+    def collections_title(self,product): #this product varible reffer to the Product Models.
+        return product.collections.title 
+
+
+    #return inventory coloumn in admin panel as string : 
+    # if inventory is < 10 : show low or show 'high'
+
+    @admin.display(ordering='inventory') # show admin panael inventory as accending order.
+    def inventory_status(self, product): # this product varibale work with 'inventory_status' column.
+        if product.inventory < 10:
+            return 'Low'
+        return 'Ok'
+
+---------------------------------------------------------------------------------
+
+store::models.py-> 
+--------------------
+class Customers(models.Model):
+    MEMBERSHIP_BRONZE = 'B'
+    MEMBERSHIP_SLIVER = 'S'
+    MEMBERSHIP_GOLD = 'G'
+    MEMBERSHIP_CHOICE = [
+    ('MEMBERSHIP_BRONZE','Bronze'),
+    ('MEMBERSHIP_SLIVER','Silver'),
+    ('MEMBERSHIP_GOLD','Gold'),
+    ]
+
+    first_name = models.CharField(max_length=255)
+    last_name = models.CharField(max_length=255)
+    email = models.EmailField(unique=True)
+    phone = models.IntegerField()
+    brith_date = models.DateField(null=True)
+    membership = models.CharField(max_length=17, choices=MEMBERSHIP_CHOICE, default=MEMBERSHIP_BRONZE)
+    
+    def __str__(self):
+        return f"{self.first_name} {self.last_name }"
+
+
+    class Meta:
+        ordering = ['first_name', 'last_name']
+
+and goto sote::admin.py=> 
+------------------------------
+=> [good practise is trying to keep same the column name inside admin.py -> class/functions . ]
+
+from django.contrib import admin
+
+from . import models
+
+
+@admin.register(models.Products)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ['title', 'unit_price', 'inventory_status', 'collections_title'] # show the title and unit_price in admin page, product has a link with collections table with collections column.
+    list_editable = ['unit_price'] #now can edit -> 'unit_price' column.
+    list_per_page = 10 #paginations .
+    ordering = ['title', 'unit_price'] #accending order with titel and followed by unit_price.
+    list_select_related = ['collections'] # Product Fk with Collections , collections form collections table in Product table
+
+
+    def collections_title(self,product): #this product varible reffer to the Product Models.
+        return product.collections.title 
+
+
+    #return inventory coloumn in admin panel as string : 
+    # if inventory is < 10 : show low or show 'high'
+
+    @admin.display(ordering='inventory') # show admin panael inventory as accending order.
+    def inventory_status(self, product): # this product varibale work with 'inventory_status' column.
+        if product.inventory < 10:
+            return 'Low'
+        return 'Ok'
+    
+
+@admin.register(models.Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ['id', 'place_order', 'customers', 'payment_status']
+
+    def place_order(self, order):
+        return order.place_order
+
+    def customers(self, order):
+        return order.Customers
+
+
+@admin.register(models.Customers)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ['first_name', 'last_name', 'membership']
+    list_editable = ['membership']
+    list_per_page = 10
+    ordering = ['first_name', 'last_name']
+
+
+
+
+# Register your models here.
+admin.site.register(models.Collections)
+
+
+
+
+---------------------------------------------------------------------------------
+
+#insert custom table with annotate -------------------------------
+
+@admin.register(models.Collections)
+class CollectionsAdmin(admin.ModelAdmin):
+    list_display = ['title', 'featured_product', 'product_count']
+    list_editable = ['featured_product']
+
+    def product_count(self, collections):
+        return collections.product_count
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(
+            product_count=Count('products') # this variable comes from Collections Models. if reserve error then change the Variable name
+        )
+
+
+# Register your models here.
+# admin.site.register(models.Collections) or use => @admin.register(models.Collections)
+
+
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
