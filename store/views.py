@@ -5,8 +5,8 @@ from django.http import HttpResponse
 from rest_framework.decorators import api_view 
 from rest_framework import generics
 from rest_framework.response import Response #serializers to Json formater
-from store.models import Products,Collections,OrderItems
-from store.serializers import ProductSerializer,CollectionsSerializer
+from store.models import Products,Collections,OrderItems,Review
+from store.serializers import ProductSerializer,CollectionsSerializer,ReviewSerializer
 from django.shortcuts import get_object_or_404 #if object not found then raise error ...
 from rest_framework.status import HTTP_200_OK,HTTP_201_CREATED,HTTP_204_NO_CONTENT
 from django.db.models import Count
@@ -52,5 +52,17 @@ class CollectionViewSet(ModelViewSet):
              return super().destroy(request, *args, **kwargs)
        
 
+class ReviewViewSet(ModelViewSet):
+     #cutom query : cz reviews show for every product : filter review for indivisual products.
+     def get_queryset(self):
+         return Review.objects.filter(product_id =self.kwargs['product_pk'])
+     
+
+     #use this method for => send data to Review serializer
+     def get_context_data(self) :
+         return {'product_id':self.kwargs['product_pk']}
+     
+     
+     serializer_class = ReviewSerializer
 
 
