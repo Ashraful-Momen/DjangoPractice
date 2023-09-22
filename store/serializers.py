@@ -15,6 +15,20 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def calculate_tax(self, product:Products):
         return product.unit_price * Decimal(1.1)
-    
+
+
+
+class CollectionsSerializer(serializers.ModelSerializer):
+    products_count = serializers.IntegerField()  # Add this line
+
+    class Meta: 
+        model = Collections
+        fields = ['id', 'title', 'products_count']
+
+        
+
+
+
+
 
 

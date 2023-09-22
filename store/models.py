@@ -29,7 +29,7 @@ class Products (models.Model):
     unit_price = models.DecimalField(max_digits=10, decimal_places=2) 
     inventory = models.IntegerField()
     last_update = models.DateTimeField(auto_now=True)
-    collections = models.ForeignKey(Collections,on_delete=models.PROTECT) # if want to delete Collections , Before must be delete Products .
+    collections = models.ForeignKey(Collections,on_delete=models.PROTECT,related_name='products') # if want to delete Collections , Before must be delete Products .
     promotions = models.ManyToManyField(Promotions)
 
     def __str__(self) -> str:
