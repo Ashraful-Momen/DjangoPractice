@@ -8,8 +8,10 @@ from django.db.models import Count
 
 from rest_framework.viewsets import ModelViewSet
 from django_filters.rest_framework import DjangoFilterBackend# filter easyly with any Db.coloumn like price ...
-from rest_framework.filters import SearchFilter # for search -> product 
+from rest_framework.filters import SearchFilter,OrderingFilter # for search,sorting -> product 
+from rest_framework.pagination import PageNumberPagination #paginations
 from .filters import ProductFilter 
+from store.paginations import DefaultPagination #cutom paginations.
 
 class ProductViewSet(ModelViewSet):
 
@@ -17,10 +19,13 @@ class ProductViewSet(ModelViewSet):
     serializer_class = ProductSerializer
 
     #for filter: =>-------------------------
-    filter_backends = [DjangoFilterBackend,SearchFilter]
+    filter_backends = [DjangoFilterBackend,SearchFilter,OrderingFilter]
+    # pagination_class = PageNumberPagination
+    pagination_class = DefaultPagination  #custom paginations
     # filterset_fields = ['collections_id']
     filterset_class = ProductFilter #import form custom file.
     search_fields  = ['title', 'describtion'] #search box working with those fields.
+    ordering_fields = ['unit_price','last_update']
 
 
 
