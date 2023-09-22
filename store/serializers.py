@@ -19,7 +19,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class CollectionsSerializer(serializers.ModelSerializer):
-    products_count = serializers.IntegerField()  # Add this line
+    products_count = serializers.IntegerField(read_only=True)  # Add this line
 
     class Meta: 
         model = Collections
