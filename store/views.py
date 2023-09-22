@@ -20,8 +20,25 @@ from rest_framework.viewsets import ModelViewSet
 
 
 class ProductViewSet(ModelViewSet):
-    queryset = Products.objects.select_related('collections')
+
+    #if use custom query then get error for the base name . parent router should be add the base_name cz query 
+    #cz query run according to the basename ...
+    
     serializer_class = ProductSerializer
+
+    #for filter product according to collections id , need custom query: 
+    def get_queryset(self):
+        queryset = Products.objects.all()
+
+        #self.reqeust take value form user;
+        #  query_param[] use in url for Sqlquery and return query but it's not work properly, that's why use query.get().
+        collection_id = self.request.query_params.get('collection_id') #MultiValueDictKeyError at /store/product : solve the error use query.get()
+
+        if collection_id is not None: 
+             queryset = queryset.filter(collections_id=collection_id) #first collections varibale add extra -> s (revers word avoiding)
+       
+        return queryset
+
 
     def get_serializer_context(self): #for serializer extra variable /
         return {'request':self.request}

@@ -8,7 +8,7 @@ app_name = 'store'
 
 
 router = routers.DefaultRouter()
-router.register(r'product', views.ProductViewSet)
+router.register(r'product', views.ProductViewSet, basename='product') #assertions baseName error that's why add base name
 router.register(r'collection', views.CollectionViewSet)
 
 product_router = routers.NestedDefaultRouter(router, r'product', lookup='product')
