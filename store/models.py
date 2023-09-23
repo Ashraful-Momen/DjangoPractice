@@ -1,4 +1,5 @@
 from django.db import models
+from uuid import uuid4 #for generate cart unique number.
 
 # Create your models here.
 
@@ -90,6 +91,7 @@ class OrderItems(models.Model):
     unit_price = models.DecimalField(max_digits=6,decimal_places=2)
 
 class Cart(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
     created_at = models.DateTimeField(auto_now_add=True)
 
 class Address(models.Model):
@@ -101,9 +103,11 @@ class Address(models.Model):
     Customers = models.OneToOneField(Customers,on_delete=models.CASCADE, primary_key=True ) 
 
 class CartItem(models.Model):
-    cart = models.ForeignKey(Cart,on_delete=models.CASCADE)
-    Products = models.ForeignKey(Products,on_delete=models.CASCADE)
-    quantitiy = models.PositiveSmallIntegerField()
+    cart = models.ForeignKey(Cart,on_delete=models.CASCADE, related_name='items') #
+    product = models.ForeignKey(Products,on_delete=models.CASCADE)
+    quantity = models.PositiveSmallIntegerField()
+
+    unique_together = [['cart','products']] #for unique generated....
 
 
 

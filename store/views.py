@@ -1,7 +1,7 @@
 
 from rest_framework.response import Response #serializers to Json formater
-from store.models import Products,Collections,OrderItems,Review
-from store.serializers import ProductSerializer,CollectionsSerializer,ReviewSerializer
+from store.models import Products,Collections,OrderItems,Review,Cart,CartItem
+from store.serializers import ProductSerializer,CollectionsSerializer,ReviewSerializer,CartSerializer,CartItemSerializer,AddCartItemSerializer
 from django.db.models import Count
 
 
@@ -12,6 +12,10 @@ from rest_framework.filters import SearchFilter,OrderingFilter # for search,sort
 from rest_framework.pagination import PageNumberPagination #paginations
 from .filters import ProductFilter 
 from store.paginations import DefaultPagination #cutom paginations.
+
+#import for cart:
+from rest_framework.mixins import CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin
+from rest_framework.viewsets import GenericViewSet
 
 class ProductViewSet(ModelViewSet):
 
@@ -71,4 +75,24 @@ class ReviewViewSet(ModelViewSet):
      
      serializer_class = ReviewSerializer
 
+
+class CartViewSet(CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin,GenericViewSet):
+     
+    #  queryset = Cart.objects.all()
+     queryset = Cart.objects.prefetch_related('items__product').all() #cart -> Fk-> CartItem(related_name=items), instide cartItem Fk-> Products(product) | optimize the query
+     serializer_class = CartSerializer
+
+
+#show single items of cart: 
+class CartItemViewSet(ModelViewSet):
+     serializer_class = CartItemSerializer 
+
+   
+
+
+     #need single cartItem hast cart_id column , so need cart_ID+ to catch  :
+     def get_queryset(self):
+          return CartItem.objects.\
+                        filter(cart_id=self.kwargs['cart_pk']).\
+                        select_related('product')
 
