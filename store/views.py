@@ -84,14 +84,24 @@ class CartViewSet(CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyMode
 
 
 #show single items of cart: 
-class CartItemViewSet(ModelViewSet):
-     serializer_class = CartItemSerializer 
+class CartItemViewSet(ModelViewSet): #tabels need , cart_id, product_id, quantity in DB.
+   
 
+    #for add cartItem use custom serializer: 
+    def get_serializer_class(self):
+         if self.request.method == "POST":
+              return AddCartItemSerializer #use for add new cartItem.
+         
+         return CartItemSerializer # use for get() cartItem.
+    
+
+    def get_serializer_context(self): #data collect from urls , then send to serializer 
+         return {'cart_id':self.kwargs['cart_pk']}
    
 
 
      #need single cartItem hast cart_id column , so need cart_ID+ to catch  :
-     def get_queryset(self):
+    def get_queryset(self):
           return CartItem.objects.\
                         filter(cart_id=self.kwargs['cart_pk']).\
                         select_related('product')

@@ -63,16 +63,80 @@ class CartItemSerializer(serializers.ModelSerializer):
         fields = ['id', 'product', 'quantity', 'total_price']
 
 
+# class AddCartItemSerializer(serializers.ModelSerializer):
+#     product_id = serializers.IntegerField()
+
+#     class Meta:
+#         model = CartItem 
+#         fields = ['id','product_id','quantity'] #those field get from DB . if need extra data in varibale then we use self.request -> get data from url through get_context(self.kwagrs['paramsName-which get from urls/users']) for serializer.
+
+    
+#     #data validation which get from url/users: if user input wrong product_id then => 
+#     def validate_product_id(self,value):
+#         if not Products.objects.filter(pk=value).exists():
+#             raise serializers.ValidationError('No Product Fount with the given ID')
+#         return value
+    
+    
+    
+#     def save(self, **kwargs): #*** in serializer can't get params from urls , that's why use get_context() method in views to pass data into serializer.
+#         #in views we are using => serializer.is_validate():  -> serializer.save() 
+#         cart_id = self.context['cart_id']
+#         product_id = self.validated_data['product_id'] #get from  urls
+#         quantity = self.validated_data['quantity'] #get from urls
+
+
+#         try:
+#             cart_item = CartItem.objects.get(cart_id=cart_id, product_id=product_id) #if get cart item then just update cartItem. and increase the quantity.
+#             cart_item.quantity += quantity  # Increment quantity
+#             cart_item.save()
+#             self.instance = cart_item #if Model get any data then update and return instance
+#         except cart_item.DoesNotExist:
+#             #  CartItem.objects.create(cart_id=cart_id, product_id=product_id, quantity = quantity) #if not found any cartItem then create new Item
+#             #  or user => 
+#          self.instance = CartItem.objects.create(cart_id=cart_id, **self.validated_data) #if not found any cartItem then create new Item
+        
+#         return self.instance #if model not get any data then create new instance then return to db.
+
 class AddCartItemSerializer(serializers.ModelSerializer):
     product_id = serializers.IntegerField()
 
     class Meta:
         model = CartItem 
-        fields = ['id','product_id','quantity']
+        fields = ['id','product_id','quantity'] #those field get from DB . if need extra data in varibale then we use self.request -> get data from url through get_context(self.kwagrs['paramsName-which get from urls/users']) for serializer.
+
+    #data validation which get from url/users: if user input wrong product_id then => 
+    def validate_product_id(self,value):
+        if not Products.objects.filter(pk=value).exists():
+            raise serializers.ValidationError('No Product Fount with the given ID')
+        return value
+    
+    def save(self, **kwargs): #*** in serializer can't get params from urls , that's why use get_context() method in views to pass data into serializer.
+        #in views we are using => serializer.is_validate():  -> serializer.save() 
+        cart_id = self.context['cart_id'] #get from  views.context(method)
+        product_id = self.validated_data['product_id'] #get from  urls
+        quantity = self.validated_data['quantity'] #get from  urls
+
+        try:
+            cart_item = CartItem.objects.get(cart_id=cart_id, product_id=product_id)  #if get cart item then just update cartItem. and increase the quantity.
+            cart_item.quantity += quantity
+            cart_item.save()
+            self.instance = cart_item#if Model get any data then update and return instance
+        except CartItem.DoesNotExist:
+            product = Products.objects.get(pk=product_id)
+            self.instance = CartItem.objects.create(cart_id=cart_id, product=product, quantity=quantity)#if not found any cartItem then create new Item
+             #  or user => 
+             #  self.instance = CartItem.objects.create(cart_id=cart_id, **self.validated_data)
+        return self.instance #if model not get any data then create new instance then return to db.
+
+
+
+
+
 
 class CartSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
-    items = CartItemSerializer(many=True, )  # Set read_only=True
+    items = CartItemSerializer(many=True, read_only=True )  # Set read_only=True
     total_price = serializers.SerializerMethodField()
 
     def get_total_price(self,cart:Cart):
