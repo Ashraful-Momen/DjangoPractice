@@ -3116,6 +3116,402 @@ class Review(models.Model):
 -------------------------------------------------------------------------------------------------------------
 urls -> views -> serializer (return Json formet data , take data fields from Models/ Template.html alternatives...).
 ---------------------------------------------------------------------------------------------
+store::urls.py=>
+================
+from django.urls import path
+from store import views
+#default router show the api endpoint urls.
+from rest_framework_nested import routers
+
+
+app_name = 'store'
+
+
+router = routers.DefaultRouter()
+router.register(r'product', views.ProductViewSet, basename='product') #assertions baseName error that's why add base name
+router.register(r'collection', views.CollectionViewSet)
+router.register(r'cart',views.CartViewSet,basename='cart')
+
+#for retrive reviews form product use => 
+product_router = routers.NestedDefaultRouter(router, r'product', lookup='product')
+product_router.register(r'review', views.ReviewViewSet, basename='product-reviews')
+
+#for retrive cartItem form cart use=> 
+cart_router = routers.NestedDefaultRouter(router, r'cart', lookup='cart') # send to cart_pk to CartItemViews.
+cart_router.register(r'cartItem', views.CartItemViewSet, basename='cart-items') #basename has 2 route cart-item-detials/ cart-item-list #as nested routers
+
+urlpatterns = [] + router.urls + product_router.urls + cart_router.urls 
+
+
+---------------------------
+---------------------------
+store::views.py=> 
+---------------------------
+
+from rest_framework.response import Response #serializers to Json formater
+from store.models import Products,Collections,OrderItems,Review,Cart,CartItem
+from store.serializers import ProductSerializer,CollectionsSerializer,ReviewSerializer,CartSerializer,CartItemSerializer,AddCartItemSerializer,UpdateCartItemSerializer
+from django.db.models import Count
+
+
+
+from rest_framework.viewsets import ModelViewSet
+from django_filters.rest_framework import DjangoFilterBackend# filter easyly with any Db.coloumn like price ...
+from rest_framework.filters import SearchFilter,OrderingFilter # for search,sorting -> product 
+from rest_framework.pagination import PageNumberPagination #paginations
+from .filters import ProductFilter 
+from store.paginations import DefaultPagination #cutom paginations.
+
+#import for cart:
+from rest_framework.mixins import CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin
+from rest_framework.viewsets import GenericViewSet
+
+class ProductViewSet(ModelViewSet):
+
+    queryset = Products.objects.all()
+    serializer_class = ProductSerializer
+
+    #for filter: =>-------------------------
+    filter_backends = [DjangoFilterBackend,SearchFilter,OrderingFilter]
+    # pagination_class = PageNumberPagination
+    pagination_class = DefaultPagination  #custom paginations
+    # filterset_fields = ['collections_id']
+    filterset_class = ProductFilter #import form custom file.
+    search_fields  = ['title', 'describtion'] #search box working with those fields.
+    ordering_fields = ['unit_price','last_update']
+
+
+
+    def get_serializer_context(self): #for serializer extra variable /mehtod to send to serializer
+        return {'request':self.request}
+    
+    def destroy(self, request, *args, **kwargs):
+          if OrderItems.objects.filter(product__id=kwargs['pk']).count() > 0:  #aggregations-> count(), ORM query fn-> Count().
+                return Response({"error": "product can't be delete cause in orderitem"},)
+         
+          return super().destroy(request, *args, **kwargs)
+  
+
+
+
+
+# --------------------------------collections-------------------------------------
+
+
+
+class CollectionViewSet(ModelViewSet):
+        
+        queryset = Collections.objects.annotate(products_count=Count('products')).all()
+        serializer_class = CollectionsSerializer
+
+        def destroy(self, request, *args, **kwargs):
+             if OrderItems.products.filter(product__id=kwargs['pk']).count() > 0:  # Changed 'collection' to 'collection'
+                return Response({'error': "collections can't be deleted because order items are included"})
+             
+             return super().destroy(request, *args, **kwargs)
+       
+
+class ReviewViewSet(ModelViewSet):
+     #cutom query : cz reviews show for every product : filter review for indivisual products.
+     def get_queryset(self):
+         return Review.objects.filter(product_id =self.kwargs['product_pk'])
+     
+
+     #use this method for => send data to Review serializer
+     def get_context_data(self) :
+         return {'product_id':self.kwargs['product_pk']}
+     
+     
+     serializer_class = ReviewSerializer
+
+
+class CartViewSet(CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin,GenericViewSet):
+     
+    #  queryset = Cart.objects.all()
+     queryset = Cart.objects.prefetch_related('items__product').all() #cart -> Fk-> CartItem(related_name=items), instide cartItem Fk-> Products(product) | optimize the query
+     serializer_class = CartSerializer
+
+
+#show single items of cart: 
+class CartItemViewSet(ModelViewSet): #tabels need , cart_id, product_id, quantity in DB.
+   
+    #allow http method : 
+    http_method_names = ['get', 'post','patch','delete'] #declare those methods which we want to use.
+
+    #for add cartItem use custom serializer: 
+    def get_serializer_class(self):
+         if self.request.method == "POST":
+              return AddCartItemSerializer #use for add new cartItem.
+         elif self.request.method == "PATCH":
+              return UpdateCartItemSerializer
+         
+         return CartItemSerializer # use for get() cartItem.
+    
+
+    def get_serializer_context(self): #data collect from urls , then send to serializer 
+         return {'cart_id':self.kwargs['cart_pk']}
+   
+
+
+     #need single cartItem hast cart_id column , so need cart_ID+ to catch  :
+    def get_queryset(self):
+          return CartItem.objects.\
+                        filter(cart_id=self.kwargs['cart_pk']).\
+                        select_related('product')
+
+
+---------------------------
+---------------------------
+serializer.py=> 
+---------------------------
+from decimal import Decimal
+from rest_framework import serializers
+from store.models import Products,Collections,Review,Cart,CartItem
+
+class ProductSerializer(serializers.ModelSerializer):
+    
+
+    class Meta : 
+        model = Products
+        fields = ['title', 'price', 'collections','price_with_tax','inventory','describtion'] #first search fields form model , if not find . then search => price , collections, tax_with price
+
+  
+    price = serializers.DecimalField(max_digits=6, decimal_places=2, source='unit_price') #custome name price => comes from unit_prime -> product(model)
+    price_with_tax = serializers.SerializerMethodField(method_name='calculate_tax')
+
+    def calculate_tax(self, product:Products):
+        return product.unit_price * Decimal(1.1)
+
+
+
+class CollectionsSerializer(serializers.ModelSerializer):
+    products_count = serializers.IntegerField(read_only=True)  # Add this line
+
+    class Meta: 
+        model = Collections
+        fields = ['id', 'title', 'products_count']
+
+        
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+
+    class Meta: 
+        model = Review
+        fields = ['id', 'date','name', 'describtion','product']
+
+    #Receive data from context method form views.Reveiws (product_id, reviews_also )
+    def create(self,validated_data):
+        product_id = self.context ['product_id']
+        return Review.objects.create(product_id=product_id,**validated_data)
+
+
+
+
+#Cart take cartItems from CartItem serializers (parent - cart , child - cartItem):----------------------------
+
+class SimpleProductSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Products
+        fields = ['pk', 'title','unit_price']
+
+
+class CartItemSerializer(serializers.ModelSerializer):
+    product = SimpleProductSerializer() 
+    total_price = serializers.SerializerMethodField()
+
+    def get_total_price(self, cart_item: CartItem):
+        return cart_item.quantity * cart_item.product.unit_price
+
+    class Meta:
+        model = CartItem
+        fields = ['id', 'product', 'quantity', 'total_price']
+
+
+class AddCartItemSerializer(serializers.ModelSerializer):
+    product_id = serializers.IntegerField()
+
+    class Meta:
+        model = CartItem 
+        fields = ['id','product_id','quantity'] #those field get from DB . if need extra data in varibale then we use self.request -> get data from url through get_context(self.kwagrs['paramsName-which get from urls/users']) for serializer.
+
+    #data validation which get from url/users: if user input wrong product_id then => 
+    def validate_product_id(self,value):
+        if not Products.objects.filter(pk=value).exists():
+            raise serializers.ValidationError('No Product Fount with the given ID')
+        return value
+    
+    def save(self, **kwargs): #*** in serializer can't get params from urls , that's why use get_context() method in views to pass data into serializer.
+        #in views we are using => serializer.is_validate():  -> serializer.save() 
+        cart_id = self.context['cart_id'] #get from  views.context(method)
+        product_id = self.validated_data['product_id'] #get from  urls
+        quantity = self.validated_data['quantity'] #get from  urls
+
+        try:
+            cart_item = CartItem.objects.get(cart_id=cart_id, product_id=product_id)  #if get cart item then just update cartItem. and increase the quantity.
+            cart_item.quantity += quantity
+            cart_item.save()
+            self.instance = cart_item#if Model get any data then update and return instance
+        except CartItem.DoesNotExist:
+            product = Products.objects.get(pk=product_id)
+            self.instance = CartItem.objects.create(cart_id=cart_id, product=product, quantity=quantity)#if not found any cartItem then create new Item
+             #  or user => 
+             #  self.instance = CartItem.objects.create(cart_id=cart_id, **self.validated_data)
+        return self.instance #if model not get any data then create new instance then return to db.
+
+
+class UpdateCartItemSerializer(serializers.ModelSerializer):
+
+    class Meta : 
+        model = CartItem 
+        fields = ['quantity']
+
+        
+
+
+
+
+class CartSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
+    items = CartItemSerializer(many=True, read_only=True )  # Set read_only=True
+    total_price = serializers.SerializerMethodField()
+
+    def get_total_price(self,cart:Cart):
+        return sum([item.quantity * item.product.unit_price for item in cart.items.all()]) #most important Line.
+
+    class Meta:
+        model = Cart
+        fields = ['id', 'items', 'total_price']
+
+
+
+
+
+---------------------------
+---------------------------
+models.py=> 
+---------------------------
+from django.db import models
+from uuid import uuid4 #for generate cart unique number.
+
+# Create your models here.
+
+
+class Promotions(models.Model):
+    describtion = models.CharField(max_length=255)
+    discount = models.FloatField()
+
+
+class Collections(models.Model):
+    title = models.CharField(max_length=255)
+    featured_product = models.ForeignKey('Products',on_delete=models.SET_NULL, null=True, related_name='+')
+
+    def __str__(self):
+        return self.title 
+    
+    class Meta:
+        ordering = ['title']
+
+    
+
+
+class Products (models.Model):
+    slug = models.SlugField()
+    sku = models.CharField(max_length=10,primary_key=True)
+    title = models.CharField(max_length=255)
+    describtion = models.TextField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2) 
+    inventory = models.IntegerField()
+    last_update = models.DateTimeField(auto_now=True)
+    collections = models.ForeignKey(Collections,on_delete=models.PROTECT,related_name='products') # if want to delete Collections , Before must be delete Products .
+    promotions = models.ManyToManyField(Promotions)
+
+    def __str__(self) -> str:
+        return self.title
+    
+    class Meta: 
+        ordering = ['title']
+
+
+
+
+class Customers(models.Model):
+    MEMBERSHIP_BRONZE = 'B'
+    MEMBERSHIP_SLIVER = 'S'
+    MEMBERSHIP_GOLD = 'G'
+    MEMBERSHIP_CHOICE = [
+    ('MEMBERSHIP_BRONZE','Bronze'),
+    ('MEMBERSHIP_SLIVER','Silver'),
+    ('MEMBERSHIP_GOLD','Gold'),
+    ]
+
+    first_name = models.CharField(max_length=255)
+    last_name = models.CharField(max_length=255)
+    email = models.EmailField(unique=True)
+    phone = models.IntegerField()
+    brith_date = models.DateField(null=True)
+    membership = models.CharField(max_length=17, choices=MEMBERSHIP_CHOICE, default=MEMBERSHIP_BRONZE)
+    
+    def __str__(self):
+        return f"{self.first_name} {self.last_name }"
+
+
+    class Meta:
+        ordering = ['first_name', 'last_name']
+
+
+
+class Order(models.Model):
+    PAYMENT_STATUS_PENDING = 'P'
+    PAYMENT_STATUS_COMPLETE = 'C'
+    PAYMENT_STATUS_FAILD = 'F'
+    PAYMENT_STATUS_CHOICE = [
+        ('PAYMENT_STATUS_PENDING','P'),
+        ('PAYMENT_STATUS_COMPLETE','C'),
+        ('PAYMENT_STATUS_FAILD','F'),
+    ]
+    place_order = models.DateTimeField(auto_now_add=True)
+    payment_status = models.CharField(
+    max_length=23, choices=PAYMENT_STATUS_CHOICE, default=PAYMENT_STATUS_PENDING
+    )
+
+    Customers = models.ForeignKey(Customers,on_delete=models.PROTECT) #if accidently delete the Customers , we don't delete the order .
+
+class OrderItems(models.Model):
+    order = models.ForeignKey(Order,on_delete=models.PROTECT)
+    Products = models.ForeignKey(Products,on_delete=models.PROTECT, related_name='orderItems')
+    quentity = models.PositiveSmallIntegerField()
+    unit_price = models.DecimalField(max_digits=6,decimal_places=2)
+
+class Cart(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Address(models.Model):
+    street = models.CharField(max_length=255)  # Corrected max_length
+    city = models.CharField(max_length=255)  
+    
+
+    #one to one relationship
+    Customers = models.OneToOneField(Customers,on_delete=models.CASCADE, primary_key=True ) 
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(Cart,on_delete=models.CASCADE, related_name='items') #
+    product = models.ForeignKey(Products,on_delete=models.CASCADE)
+    quantity = models.PositiveSmallIntegerField()
+
+    unique_together = [['cart','products']] #for unique generated....
+
+
+
+class Review(models.Model):
+    product = models.ForeignKey(Products,on_delete=models.CASCADE, related_name='review')
+    name = models.CharField(max_length=255)
+    describtion = models.TextField()
+    date = models.DateField(auto_now_add=True)
+---------------------------
+---------------------------
 
 -------------------------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------------------------

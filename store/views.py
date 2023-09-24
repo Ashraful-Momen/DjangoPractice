@@ -1,7 +1,7 @@
 
 from rest_framework.response import Response #serializers to Json formater
 from store.models import Products,Collections,OrderItems,Review,Cart,CartItem
-from store.serializers import ProductSerializer,CollectionsSerializer,ReviewSerializer,CartSerializer,CartItemSerializer,AddCartItemSerializer
+from store.serializers import ProductSerializer,CollectionsSerializer,ReviewSerializer,CartSerializer,CartItemSerializer,AddCartItemSerializer,UpdateCartItemSerializer
 from django.db.models import Count
 
 
@@ -86,11 +86,15 @@ class CartViewSet(CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyMode
 #show single items of cart: 
 class CartItemViewSet(ModelViewSet): #tabels need , cart_id, product_id, quantity in DB.
    
+    #allow http method : 
+    http_method_names = ['get', 'post','patch','delete'] #declare those methods which we want to use.
 
     #for add cartItem use custom serializer: 
     def get_serializer_class(self):
          if self.request.method == "POST":
               return AddCartItemSerializer #use for add new cartItem.
+         elif self.request.method == "PATCH":
+              return UpdateCartItemSerializer
          
          return CartItemSerializer # use for get() cartItem.
     
