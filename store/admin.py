@@ -1,3 +1,5 @@
+from django.db import models
+
 from typing import Any
 from django.contrib import admin
 from django.db.models.query import QuerySet
@@ -36,6 +38,8 @@ class OrderAdmin(admin.ModelAdmin):
     list_editable = ['payment_status']
     list_per_page = 10
 
+    
+
     def place_order(self, order):
         return order.place_order
 
@@ -43,12 +47,49 @@ class OrderAdmin(admin.ModelAdmin):
         return order.Customers
 
 
+# @admin.register(models.Customers)
+# class CustomerAdmin(admin.ModelAdmin):
+#     list_display = ['first_name', 'last_name', 'membership','orders']
+#     list_editable = ['membership']
+#     list_per_page = 10
+#     list_select_related = ['user']
+#     ordering = ['user__first_name', 'user__last_name']
+
+from django.contrib import admin
+from .models import Customers, Order
+
+# @admin.register(Customers)
+# class CustomerAdmin(admin.ModelAdmin):
+#     list_display = ['first_name', 'last_name', 'membership', 'display_orders']
+#     list_editable = ['membership']
+#     list_per_page = 10
+    
+
+
+#     """
+#         In this case, obj will be an instance of the Customers model because we're working within the CustomerAdmin class.
+#           This means obj will represent a specific customer.
+#     """
+#     def display_orders(self, obj):
+#         orders = Order.objects.filter(Customers=obj)
+#         return ', '.join([str(order.id) for order in orders])
+
+
+
+#     display_orders.short_description = 'Orders' #admin panel name is Orders
+
 @admin.register(models.Customers)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ['first_name', 'last_name', 'membership']
+    list_display = ['first_name', 'last_name', 'membership', 'get_order_count']
     list_editable = ['membership']
     list_per_page = 10
-    ordering = ['first_name', 'last_name']
+    list_select_related = ['user']
+    ordering = ['user__first_name', 'user__last_name']
+
+    def get_order_count(self, obj):
+        return obj.order_set.count() #customer parent , order child fk with customer. so , customer get order_set as default relative name.
+    get_order_count.admin_order_field = 'order_set_count'
+    get_order_count.short_description = 'Order Count'
 
 
 

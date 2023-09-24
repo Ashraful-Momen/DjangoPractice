@@ -33,8 +33,10 @@ INSTALLED_APPS = [
     'likes', 
     'debug_toolbar',
     'faker',
+    'core',
 ]
 
+AUTH_USER_MODEL = 'core.User' #appName.ModelName= core.User => core app customize the buildin django auth model.
 
 MIDDLEWARE = [
     'debug_toolbar.middleware.DebugToolbarMiddleware',
@@ -143,3 +145,5 @@ REST_FRAMEWORK = {
     # 'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination', #if you default pagination then don't we it.
     # 'PAGE_SIZE': 10,  # Set your desired page size here( don't need if use default paginations).
 }
+
+

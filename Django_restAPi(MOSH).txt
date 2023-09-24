@@ -3514,12 +3514,452 @@ class Review(models.Model):
 ---------------------------
 
 -------------------------------------------------------------------------------------------------------------
+------------------------------------Authentications : Core-------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+
+
+>>> create a new app => core and setup with the setting.py . for Authentications we use this app.
+-------------------------------------------------------------------------------------------------------------
+>>>settings.py  add this line => AUTH_USER_MODEL = 'core.User' 
+--------------------------
+likes.LikeItem.users: (fields.E301) Field defines a relation with the model 'auth.User', which has been swapped out.
+        HINT: Update the relation to point at 'settings.AUTH_USER_MODEL'.
+    
+*** this error generated cause the Likes app depends on buildin User Model . for fixing import the core app model in 
+like app model => from core.models import User |  in like app models.py=> 
+> add this line too =>     users = models.ForeignKey(settings.AUTH_USER_MODEL , on_delete=models.CASCADE)
+
+
+>>>python manage.py makemigrations 
+>>> python manage.py migrate 
+
+But we can't migrate the DB cause of => 
+-------------------------------------------
+*** for custom user model we have to do it , at the beggin part ... at the middle stage if we wanna go to modify 
+    then we have to drop the database .... which is not good right.
+    ---------------------------------------------------------------
+so goto DB in console => 
+
+>>> DROP DATABASES storefront;
+>>> CREATE DATABASES storefront;
+
+then we can migrate => >>> python manage.py migrate 
+----------------------------------
+----------------------------------
+store::core::models.py=> 
+----------------------------------
+from django.contrib import admin
+
+#import file for customer admin user model register: 
+from store.models import Products
+from django.contrib.contenttypes.admin import GenericTabularInline
+from store.admin import ProductAdmin
+from taqs.models import TaggItem 
+# --------------------------------------
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from .models import User
+
+# 
+@admin.register(User)
+class UserAdmin(BaseUserAdmin):
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'is_active')
+    list_filter = ('is_staff', 'is_active')
+
+    #those feilds copy from => UserAdmin Class: => 
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": ("username", "password1", "password2","email","first_name","last_name"),
+            },
+        ),
+    )
+
+----------------------------------
+----------------------------------
+store::core::admin.py=> 
+----------------------------------
+from django.contrib import admin
+
+#import file for customer admin user model register: 
+from store.models import Products
+from django.contrib.contenttypes.admin import GenericTabularInline
+from store.admin import ProductAdmin
+from taqs.models import TaggItem 
+# --------------------------------------
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from .models import User
+
+# 
+@admin.register(User)
+class UserAdmin(BaseUserAdmin):
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'is_active')
+    list_filter = ('is_staff', 'is_active')
+
+    #those feilds copy from => UserAdmin Class: => 
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": ("username", "password1", "password2","email","first_name","last_name"),
+            },
+        ),
+    )
+
+----------------------------------
+----------------------------------
+----------------------------------------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------------------------------------
+---------------------------------------Customer ----------------------------------------------------------------------
+
+store::models.py=> 
+==================
+from django.db import models
+from uuid import uuid4 #for generate cart unique number.
+
+#import for users links with profile: 
+from django.conf import settings
+#improt admin for display first_name, last_name as ordering : 
+from django.contrib import admin
+
+# Create your models here.
+
+
+class Promotions(models.Model):
+    describtion = models.CharField(max_length=255)
+    discount = models.FloatField()
+
+
+class Collections(models.Model):
+    title = models.CharField(max_length=255)
+    featured_product = models.ForeignKey('Products',on_delete=models.SET_NULL, null=True, related_name='+')
+
+    def __str__(self):
+        return self.title 
+    
+    class Meta:
+        ordering = ['title']
+
+    
+
+
+class Products (models.Model):
+    slug = models.SlugField()
+    sku = models.CharField(max_length=10,primary_key=True)
+    title = models.CharField(max_length=255)
+    describtion = models.TextField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2) 
+    inventory = models.IntegerField()
+    last_update = models.DateTimeField(auto_now=True)
+    collections = models.ForeignKey(Collections,on_delete=models.PROTECT,related_name='products') # if want to delete Collections , Before must be delete Products .
+    promotions = models.ManyToManyField(Promotions)
+
+    def __str__(self) -> str:
+        return self.title
+    
+    class Meta: 
+        ordering = ['title']
+
+
+
+
+# class Customers(models.Model):
+#     MEMBERSHIP_BRONZE = 'B'
+#     MEMBERSHIP_SLIVER = 'S'
+#     MEMBERSHIP_GOLD = 'G'
+#     MEMBERSHIP_CHOICE = [
+#     ('MEMBERSHIP_BRONZE','Bronze'),
+#     ('MEMBERSHIP_SLIVER','Silver'),
+#     ('MEMBERSHIP_GOLD','Gold'),
+#     ]
+
+#     first_name = models.CharField(max_length=255)
+#     last_name = models.CharField(max_length=255)
+#     email = models.EmailField(unique=True)
+#     phone = models.IntegerField()
+#     brith_date = models.DateField(null=True)
+#     membership = models.CharField(max_length=17, choices=MEMBERSHIP_CHOICE, default=MEMBERSHIP_BRONZE)
+#     # orders = models.ManyToManyField(Order)
+#     #Link to the user Model: 
+#     user = models.OneToOneField(settings.AUTH_USER_MODEL,on_delete=models.CASCADE)
+
+
+#     # def __str__(self):
+#     #     return f"{self.first_name} {self.last_name }"
+    
+
+#     #this 2 functions pass to admin.py=> 
+#     @admin.display(ordering='user__first_name')
+#     def first_name(self):
+#         return self.user.first_name
+    
+#     @admin.display(ordering='user__last_name')
+#     def last_name(self):
+#         return self.user.last_name
+    
+    
+#     def get_order_count(self):
+#         return self.order_set.count()
+
+
+#     class Meta:
+#         ordering = ['user__first_name', 'user__last_name']
+
+
+
+class Customers(models.Model):
+    MEMBERSHIP_BRONZE = 'B'
+    MEMBERSHIP_SILVER = 'S'
+    MEMBERSHIP_GOLD = 'G'
+    MEMBERSHIP_CHOICES = [
+        ('MEMBERSHIP_BRONZE', 'Bronze'),
+        ('MEMBERSHIP_SILVER', 'Silver'),
+        ('MEMBERSHIP_GOLD', 'Gold'),
+    ]
+
+    first_name = models.CharField(max_length=255)
+    last_name = models.CharField(max_length=255)
+    email = models.EmailField(unique=True)
+    phone = models.IntegerField()
+    birth_date = models.DateField(null=True)
+    membership = models.CharField(max_length=17, choices=MEMBERSHIP_CHOICES, default=MEMBERSHIP_BRONZE)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    @admin.display(ordering='user__first_name')
+    def first_name(self):
+        return self.user.first_name
+    
+    @admin.display(ordering='user__last_name')
+    def last_name(self):
+        return self.user.last_name
+    
+    def get_order_count(self):
+        return self.order_set.count()
+
+    class Meta:
+        ordering = ['user__first_name', 'user__last_name']
+
+
+class Order(models.Model):
+    PAYMENT_STATUS_PENDING = 'P'
+    PAYMENT_STATUS_COMPLETE = 'C'
+    PAYMENT_STATUS_FAILD = 'F'
+    PAYMENT_STATUS_CHOICE = [
+        ('PAYMENT_STATUS_PENDING','P'),
+        ('PAYMENT_STATUS_COMPLETE','C'),
+        ('PAYMENT_STATUS_FAILD','F'),
+    ]
+    place_order = models.DateTimeField(auto_now_add=True)
+    payment_status = models.CharField(
+    max_length=23, choices=PAYMENT_STATUS_CHOICE, default=PAYMENT_STATUS_PENDING
+    )
+
+    Customers = models.ForeignKey(Customers,on_delete=models.PROTECT) #if accidently delete the Customers , we don't delete the order .
+
+class OrderItems(models.Model):
+    order = models.ForeignKey(Order,on_delete=models.PROTECT)
+    Products = models.ForeignKey(Products,on_delete=models.PROTECT, related_name='orderItems')
+    quentity = models.PositiveSmallIntegerField()
+    unit_price = models.DecimalField(max_digits=6,decimal_places=2)
+
+class Cart(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Address(models.Model):
+    street = models.CharField(max_length=255)  # Corrected max_length
+    city = models.CharField(max_length=255)  
+    
+
+    #one to one relationship
+    Customers = models.OneToOneField(Customers,on_delete=models.CASCADE, primary_key=True ) 
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(Cart,on_delete=models.CASCADE, related_name='items') #
+    product = models.ForeignKey(Products,on_delete=models.CASCADE)
+    quantity = models.PositiveSmallIntegerField()
+
+    unique_together = [['cart','products']] #for unique generated....
+
+
+
+class Review(models.Model):
+    product = models.ForeignKey(Products,on_delete=models.CASCADE, related_name='review')
+    name = models.CharField(max_length=255)
+    describtion = models.TextField()
+    date = models.DateField(auto_now_add=True)
+
+
+
+------------------------------
+------------------------------
+store::admin.py=> 
+------------------------------
+from django.db import models
+
+from typing import Any
+from django.contrib import admin
+from django.db.models.query import QuerySet
+from django.http.request import HttpRequest
+from django.db.models import Count,Min,Max,Avg,Sum
+
+from . import models
+
+
+@admin.register(models.Products)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ['title', 'unit_price', 'inventory_status', 'collections_title'] # show the title and unit_price in admin page, product has a link with collections table with collections column.
+    list_editable = ['unit_price'] #now can edit -> 'unit_price' column.
+    list_per_page = 10 #paginations .
+    ordering = ['title', 'unit_price'] #accending order with titel and followed by unit_price.
+    list_select_related = ['collections'] # Product Fk with Collections , collections form collections table in Product table
+
+
+    def collections_title(self,product): #this product varible reffer to the Product Models.
+        return product.collections.title 
+
+
+    #return inventory coloumn in admin panel as string : 
+    # if inventory is < 10 : show low or show 'high'
+
+    @admin.display(ordering='inventory') # show admin panael inventory as accending order.
+    def inventory_status(self, product): # this product varibale work with 'inventory_status' column.
+        if product.inventory < 10:
+            return 'Low'
+        return 'Ok'
+    
+
+@admin.register(models.Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ['id', 'place_order', 'customers', 'payment_status']
+    list_editable = ['payment_status']
+    list_per_page = 10
+
+    
+
+    def place_order(self, order):
+        return order.place_order
+
+    def customers(self, order):
+        return order.Customers
+
+
+# @admin.register(models.Customers)
+# class CustomerAdmin(admin.ModelAdmin):
+#     list_display = ['first_name', 'last_name', 'membership','orders']
+#     list_editable = ['membership']
+#     list_per_page = 10
+#     list_select_related = ['user']
+#     ordering = ['user__first_name', 'user__last_name']
+
+from django.contrib import admin
+from .models import Customers, Order
+
+# @admin.register(Customers)
+# class CustomerAdmin(admin.ModelAdmin):
+#     list_display = ['first_name', 'last_name', 'membership', 'display_orders']
+#     list_editable = ['membership']
+#     list_per_page = 10
+    
+
+
+#     """
+#         In this case, obj will be an instance of the Customers model because we're working within the CustomerAdmin class.
+#           This means obj will represent a specific customer.
+#     """
+#     def display_orders(self, obj):
+#         orders = Order.objects.filter(Customers=obj)
+#         return ', '.join([str(order.id) for order in orders])
+
+
+
+#     display_orders.short_description = 'Orders' #admin panel name is Orders
+
+@admin.register(models.Customers)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ['first_name', 'last_name', 'membership', 'get_order_count']
+    list_editable = ['membership']
+    list_per_page = 10
+    list_select_related = ['user']
+    ordering = ['user__first_name', 'user__last_name']
+
+    def get_order_count(self, obj):
+        return obj.order_set.count() #customer parent , order child fk with customer. so , customer get order_set as default relative name.
+    get_order_count.admin_order_field = 'order_set_count'
+    get_order_count.short_description = 'Order Count'
+
+
+
+#insert custom table with annotate -------------------------------
+
+@admin.register(models.Collections)
+class CollectionsAdmin(admin.ModelAdmin):
+    list_display = ['title', 'featured_product', 'product_count']
+    list_editable = ['featured_product']
+
+    def product_count(self, collections):
+        return collections.product_count
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(
+            product_count=Count('products') # this variable comes from Collections Models. if reserve error then change the Variable name
+        )
+
+
+# Register your models here.
+# admin.site.register(models.Collections) or use => @admin.register(models.Collections)
+
+
+------------------------------
+-------------------------------------------------------------------------------------------------------------
+---------------------------------------Group & Permission----------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+create_group > goto group | select app_table ex: store order/customer , select all | then add . 
+
+then goto user > select a member as -> stuff status. -> then select the group and save . 
+
+                > now login with the userName and Password , already we add the user as group member. 
+
+                > Now this user has a permission to CRUD of Orders/Customers.
+
+
+
+
+-------------------------------------------------------------------------------------------------------------
+----------------------------------------Custom permission add ---------------------------------------------------------------------
+
+store::models.py=> 
+------------------
+class Order(models.Model):
+    PAYMENT_STATUS_PENDING = 'P'
+    PAYMENT_STATUS_COMPLETE = 'C'
+    PAYMENT_STATUS_FAILD = 'F'
+    PAYMENT_STATUS_CHOICE = [
+        ('PAYMENT_STATUS_PENDING','P'),
+        ('PAYMENT_STATUS_COMPLETE','C'),
+        ('PAYMENT_STATUS_FAILD','F'),
+    ]
+    place_order = models.DateTimeField(auto_now_add=True)
+    payment_status = models.CharField(
+    max_length=23, choices=PAYMENT_STATUS_CHOICE, default=PAYMENT_STATUS_PENDING
+    )
+
+    customers = models.ForeignKey(Customers,on_delete=models.PROTECT) #if accidently delete the Customers , we don't delete the order .
+
+    class Meta: 
+        permissions=[
+            ('cancel_order', 'Can cancel Order')
+        ]
+
+        >>>python manage.py makemigrations
+        >>>python manage.py migrate
+        >>>then goto the admin panel and search permission in group.
 -------------------------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------------------------------
+
+
+
 
