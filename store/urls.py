@@ -12,6 +12,7 @@ router.register(r'product', views.ProductViewSet, basename='product') #assertion
 router.register(r'collection', views.CollectionViewSet)
 router.register(r'cart',views.CartViewSet,basename='cart')
 router.register(r'customer', views.CustomerViewSet, basename='customer')
+router.register(r'order', views.OrderViewSet, basename='order')
 
 #for retrive reviews form product use => 
 product_router = routers.NestedDefaultRouter(router, r'product', lookup='product')

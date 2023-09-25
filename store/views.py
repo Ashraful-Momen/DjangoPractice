@@ -1,7 +1,7 @@
 
 from rest_framework.response import Response #serializers to Json formater
-from store.models import Products,Collections,OrderItems,Review,Cart,CartItem,Customers
-from store.serializers import ProductSerializer,CollectionsSerializer,ReviewSerializer,CartSerializer,CartItemSerializer,AddCartItemSerializer,UpdateCartItemSerializer,CustomerSerializer
+from store.models import Products,Collections,OrderItems,Review,Cart,CartItem,Customers,Order, OrderItems
+from store.serializers import ProductSerializer,CollectionsSerializer,ReviewSerializer,CartSerializer,CartItemSerializer,AddCartItemSerializer,UpdateCartItemSerializer,CustomerSerializer, OrderSerializer
 from django.db.models import Count
 
 
@@ -146,5 +146,13 @@ class CustomerViewSet(ModelViewSet):
                serializer.save()
                return Response(serializer.data)
 
+
+
+# --------------------------------------order viewset----------------------------------------------
+
+class OrderViewSet(ModelViewSet):
+
+     queryset = Order.objects.all()
+     serializer_class = OrderSerializer
      
 

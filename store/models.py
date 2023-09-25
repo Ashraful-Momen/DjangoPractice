@@ -29,7 +29,7 @@ class Collections(models.Model):
 
 class Products (models.Model):
     slug = models.SlugField()
-    sku = models.CharField(max_length=10,primary_key=True)
+    sku = models.CharField(max_length=10)
     title = models.CharField(max_length=255)
     describtion = models.TextField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2) 
@@ -152,9 +152,9 @@ class Order(models.Model):
 
 
 class OrderItems(models.Model):
-    order = models.ForeignKey(Order,on_delete=models.PROTECT)
-    Products = models.ForeignKey(Products,on_delete=models.PROTECT, related_name='orderItems')
-    quentity = models.PositiveSmallIntegerField()
+    order = models.ForeignKey(Order,on_delete=models.PROTECT, related_name='items')
+    products = models.ForeignKey(Products,on_delete=models.PROTECT, related_name='orderItems')
+    quantity = models.PositiveSmallIntegerField()
     unit_price = models.DecimalField(max_digits=6,decimal_places=2)
 
 class Cart(models.Model):
