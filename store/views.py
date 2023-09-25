@@ -1,7 +1,7 @@
 
 from rest_framework.response import Response #serializers to Json formater
-from store.models import Products,Collections,OrderItems,Review,Cart,CartItem
-from store.serializers import ProductSerializer,CollectionsSerializer,ReviewSerializer,CartSerializer,CartItemSerializer,AddCartItemSerializer,UpdateCartItemSerializer
+from store.models import Products,Collections,OrderItems,Review,Cart,CartItem,Customers
+from store.serializers import ProductSerializer,CollectionsSerializer,ReviewSerializer,CartSerializer,CartItemSerializer,AddCartItemSerializer,UpdateCartItemSerializer,CustomerSerializer
 from django.db.models import Count
 
 
@@ -14,8 +14,9 @@ from .filters import ProductFilter
 from store.paginations import DefaultPagination #cutom paginations.
 
 #import for cart:
-from rest_framework.mixins import CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin
+from rest_framework.mixins import CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin,UpdateModelMixin
 from rest_framework.viewsets import GenericViewSet
+from .permissions import IsAdminOrReadOnly
 
 class ProductViewSet(ModelViewSet):
 
@@ -30,6 +31,7 @@ class ProductViewSet(ModelViewSet):
     filterset_class = ProductFilter #import form custom file.
     search_fields  = ['title', 'describtion'] #search box working with those fields.
     ordering_fields = ['unit_price','last_update']
+    permission_classes = [IsAdminOrReadOnly]
 
 
 
@@ -51,9 +53,11 @@ class ProductViewSet(ModelViewSet):
 
 
 class CollectionViewSet(ModelViewSet):
+        permission_classes = [IsAdminOrReadOnly]
         
         queryset = Collections.objects.annotate(products_count=Count('products')).all()
         serializer_class = CollectionsSerializer
+        
 
         def destroy(self, request, *args, **kwargs):
              if OrderItems.products.filter(product__id=kwargs['pk']).count() > 0:  # Changed 'collection' to 'collection'
@@ -109,4 +113,38 @@ class CartItemViewSet(ModelViewSet): #tabels need , cart_id, product_id, quantit
           return CartItem.objects.\
                         filter(cart_id=self.kwargs['cart_pk']).\
                         select_related('product')
+
+
+
+#------------------------------Customer user -> JESON WEB TOKEN-------------------------------------------
+
+from rest_framework.decorators import action #get, put, delete ...details = retrive...
+from rest_framework.permissions import IsAuthenticated,AllowAny,DjangoModelPermissions,DjangoModelPermissionsOrAnonReadOnly#permisson for users
+from .permissions import FullDjangoModelPermission,ViewCustomerModelPermission #cutom permission.
+
+class CustomerViewSet(ModelViewSet):
+     queryset = Customers.objects.all()
+     serializer_class = CustomerSerializer
+     permission_classes = [DjangoModelPermissionsOrAnonReadOnly] #use our custom class : FullDjangoModelPermission.
+
+
+     @action(detail=True, permission_classes=[ViewCustomerModelPermission]) #custom model permission
+     def history(self,request,pk):#http://127.0.0.1:8000/store/customer/1/history....
+          return Response('ok')
+     
+     @action(detail=False, methods=['GET','PUT'], permission_classes=[IsAuthenticated()])
+     def me(self, request):#http://127.0.0.1:8000/store/customer/me/ -> this /me = def me(function). & request.user -> anonimus functions of classes.
+          customer, created = Customers.objects.get_or_create(user_id=request.user.id) #get_or_create -> method return 2 value: cutomerID, created/not_created boolean
+
+          if request.method == 'GET':#also show the user id , but user_id can't edit by user. that's why make the CustomerSerializer -> user_id(read_only)
+               serializer = CustomerSerializer(customer)
+               return Response(serializer.data)
+
+          elif request.method == 'PUT':
+               serializer = CustomerSerializer(customer, data=request.data)
+               serializer.is_valid(raise_exception=True)
+               serializer.save()
+               return Response(serializer.data)
+
+     
 

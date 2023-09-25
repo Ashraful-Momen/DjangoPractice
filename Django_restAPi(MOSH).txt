@@ -3959,6 +3959,959 @@ class Order(models.Model):
         >>>then goto the admin panel and search permission in group.
 -------------------------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------------------------
+----------------------------------Token Base Authentications---------------------------------------------------------------------------
+
+
+for token Base Authentications install package => djoser package . 
+
+>>> after installations goto >>> Main.Product.Urls => path('auth/',include('djoser.urls')),
+
+>>>pip install -U djangorestframework_simplejwt
+
+>>> setting.py=>
+
+ #token base Authentications => 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+       
+    ),
+}
+SIMPLE_JWT = {
+   'AUTH_HEADER_TYPES': ('JWT',),
+}
+
+>>> Main.Projects.urls=> 
+-------------------------
+from django.contrib import admin
+from django.urls import path, include
+from playground import views
+
+
+
+admin.site.site_header = "StoreFront " #admin page heading 
+admin.site.index_title = "Admin" #admin page title
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('playground/', include('playground.urls')),
+    path('store/', include('store.urls')),
+    path('auth/',include('djoser.urls')),
+    path('auth/',include('djoser.urls.jwt')),
+    path("__debug__/", include("debug_toolbar.urls")),
+]
+
+
+>>> http://127.0.0.1:8000/auth/users/   | hit the url.
+-------------------------------------------------------------------------------------------------------------
+------------------------------------------customize the Djoser Serializer-------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+# for create new user We need to customize the Djoser Serializer.
+>>> core app >>> create new file >>> serializer.py-> 
+
+--------------------------------------------
+core::serializers.py=> 
+-----------------------------------
+
+from djoser.serializers import UserCreateSerializer as BaseUserCreateSerializer
+
+
+class UserCreateSerializer(BaseUserCreateSerializer):
+    
+    class Meta(BaseUserCreateSerializer.Meta): # we just over write the fields.
+        fields = ['id', 'username', 'password','email','first_name', 'last_name' ]
+-----------------------------------
+-----------------------------------
+core::models.py=> 
+-----------------------------------
+from django.db import models
+
+from django.utils import timezone
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+
+
+class CustomUserManager(BaseUserManager):
+    # Your custom manager code here
+    def create_user(self, email, username, password=None, **extra_fields):
+        if not email:
+            raise ValueError('The Email field must be set')
+        email = self.normalize_email(email)
+        user = self.model(email=email, username=username, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, username, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+
+        return self.create_user(email, username, password, **extra_fields)
+
+
+class User(AbstractBaseUser, PermissionsMixin):
+
+
+    username = models.CharField(max_length=30, unique=True)
+    email = models.EmailField(unique=True)
+    first_name = models.CharField(max_length=30)
+    last_name = models.CharField(max_length=30)
+
+    is_staff = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    # Other fields...
+    date_joined = models.DateTimeField(default=timezone.now)  # Add date_joined field
+    
+    objects = CustomUserManager()
+
+    REQUIRED_FIELDS = ['email', 'first_name', 'last_name'] # Add required fields
+
+    USERNAME_FIELD = 'username'  # Set the username field
+
+    def __str__(self):
+        return self.username
+
+
+
+>>> now try to add new user -> http://127.0.0.1:8000/auth/users/
+-----------------------------------
+-----------------------------------
+-----------------------------------
+
+
+-------------------------------------------------------------------------------------------------------------
+-------------------------------------Create New Customer with API------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+>>> in store app we use models of Customers.... 
+---------------------------------------------------
+store::urls.py=> 
+---------------
+from django.urls import path
+from store import views
+#default router show the api endpoint urls.
+from rest_framework_nested import routers
+
+
+app_name = 'store'
+
+
+router = routers.DefaultRouter()
+router.register(r'product', views.ProductViewSet, basename='product') #assertions baseName error that's why add base name
+router.register(r'collection', views.CollectionViewSet)
+router.register(r'cart',views.CartViewSet,basename='cart')
+router.register(r'customer', views.CustomerViewSet, basename='customer')
+
+#for retrive reviews form product use => 
+product_router = routers.NestedDefaultRouter(router, r'product', lookup='product')
+product_router.register(r'review', views.ReviewViewSet, basename='product-reviews')
+
+#for retrive cartItem form cart use=> 
+cart_router = routers.NestedDefaultRouter(router, r'cart', lookup='cart') # send to cart_pk to CartItemViews.
+cart_router.register(r'cartItem', views.CartItemViewSet, basename='cart-items') #basename has 2 route cart-item-detials/ cart-item-list #as nested routers
+
+urlpatterns = [] + router.urls + product_router.urls + cart_router.urls 
+
+
+------------------------
+------------------------
+store::views.py=> 
+------------------------
+------------------------
+# ----------------------------------Customer Serializer-------------------------------------------------------
+
+class CustomerSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField()
+
+    class Meta: 
+        model = Customers
+        fields = ['id', 'user_id', 'phone', 'email', 'birth_date', 'membership']
+-------------------------
+-------------------------
+# ----------------------------------Customer Serializer-------------------------------------------------------
+
+class CustomerSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField()
+
+    class Meta: 
+        model = Customers
+        fields = ['id', 'user_id', 'phone', 'email', 'birth_date', 'membership']
+-------------------------
+-------------------------
+-------------------------------------------------------------------------------------------------------------
+-------------------------------------------Login with token------------------------------------------------------------------
+#we get the route from djoser official website. 
+------------------------------------------------
+
+>>> http://127.0.0.1:8000/auth/jwt/create/   | register user can login then get any token . 
+
+
+
+{
+    "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTY5NTcyMzM5OSwiaWF0IjoxNjk1NjM2OTk5LCJqdGkiOiIwMDMyZTc0NTZmZDg0NzE5OWMzZWFjYmNjZjdjZmU5OSIsInVzZXJfaWQiOjF9.zGQsbwBRX2aqEDNXp5JBRugISEOuP2IXal8hzD_eQjY",
+    "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNjk1NzIzMzk5LCJpYXQiOjE2OTU2MzY5OTksImp0aSI6ImVkNDRjOGZhZGVlMzRhMThiODBiNjQ5YTQ0YTIzN2I1IiwidXNlcl9pZCI6MX0.sO-_SfE95jVuxQRPG3TaEKkPL-iTu8N7QE7dLhzpfd0"
+}
+
+#we need to increase the life token => 
+--------------------------------------
+setting.py=> 
+-------------
+from datetime import timedelta
+SIMPLE_JWT = {
+   'AUTH_HEADER_TYPES': ('JWT',),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
+}
+
+----------------------------------------------
+
+>>> now for login with JWT+token -> install mode header => Authorization+tokenPase the feild 
+>>> http://127.0.0.1:8000/auth/users/me/  |hit the url , then we can login ... cz mode.header set the token to login.
+
+
+
+
+-------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+#------------------------------Customer user -> JESON WEB TOKEN-------------------------------------------
+
+from rest_framework.decorators import action #get, put, delete ...details = retrive...
+
+class CustomerViewSet(GenericViewSet, CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, DestroyModelMixin):
+    queryset = Customers.objects.all()
+    serializer_class = CustomerSerializer
+
+    @action(detail=False, methods=['GET', 'PUT'])
+    def me(self, request):#http://127.0.0.1:8000/store/customer/me/ -> this /me = def me(function). & request.user -> anonimus functions of classes.
+        customer, created = Customers.objects.get_or_create(user_id=request.user.id) #get_or_create -> method return 2 value: cutomerID, created/not_created boolean
+
+        if request.method == 'GET':#also show the user id , but user_id can't edit by user. that's why make the CustomerSerializer -> user_id(read_only)
+            serializer = CustomerSerializer(customer)
+            return Response(serializer.data)
+
+        elif request.method == 'PUT':
+            serializer = CustomerSerializer(customer, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+
+     
+------------------------------------
+------------------------------------
+store::serialer.py=> 
+------------------------------------
+# ----------------------------------Customer Serializer-------------------------------------------------------
+
+class CustomerSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(read_only=True)
+
+    class Meta: 
+        model = Customers
+        fields = ['id', 'user_id', 'phone', 'email', 'birth_date', 'membership']
+------------------------------------
+-------------------------------------------------------------------------------------------------------------
+---------------------------------------route permission----------------------------------------------------------------------
+store::views.py=> 
+-----------------
+
+from rest_framework.response import Response #serializers to Json formater
+from store.models import Products,Collections,OrderItems,Review,Cart,CartItem,Customers
+from store.serializers import ProductSerializer,CollectionsSerializer,ReviewSerializer,CartSerializer,CartItemSerializer,AddCartItemSerializer,UpdateCartItemSerializer,CustomerSerializer
+from django.db.models import Count
+
+
+
+from rest_framework.viewsets import ModelViewSet
+from django_filters.rest_framework import DjangoFilterBackend# filter easyly with any Db.coloumn like price ...
+from rest_framework.filters import SearchFilter,OrderingFilter # for search,sorting -> product 
+from rest_framework.pagination import PageNumberPagination #paginations
+from .filters import ProductFilter 
+from store.paginations import DefaultPagination #cutom paginations.
+
+#import for cart:
+from rest_framework.mixins import CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin,UpdateModelMixin
+from rest_framework.viewsets import GenericViewSet
+
+class ProductViewSet(ModelViewSet):
+
+    queryset = Products.objects.all()
+    serializer_class = ProductSerializer
+
+    #for filter: =>-------------------------
+    filter_backends = [DjangoFilterBackend,SearchFilter,OrderingFilter]
+    # pagination_class = PageNumberPagination
+    pagination_class = DefaultPagination  #custom paginations
+    # filterset_fields = ['collections_id']
+    filterset_class = ProductFilter #import form custom file.
+    search_fields  = ['title', 'describtion'] #search box working with those fields.
+    ordering_fields = ['unit_price','last_update']
+
+
+
+    def get_serializer_context(self): #for serializer extra variable /mehtod to send to serializer
+        return {'request':self.request}
+    
+    def destroy(self, request, *args, **kwargs):
+          if OrderItems.objects.filter(product__id=kwargs['pk']).count() > 0:  #aggregations-> count(), ORM query fn-> Count().
+                return Response({"error": "product can't be delete cause in orderitem"},)
+         
+          return super().destroy(request, *args, **kwargs)
+  
+
+
+
+
+# --------------------------------collections-------------------------------------
+
+
+
+class CollectionViewSet(ModelViewSet):
+        
+        queryset = Collections.objects.annotate(products_count=Count('products')).all()
+        serializer_class = CollectionsSerializer
+
+        def destroy(self, request, *args, **kwargs):
+             if OrderItems.products.filter(product__id=kwargs['pk']).count() > 0:  # Changed 'collection' to 'collection'
+                return Response({'error': "collections can't be deleted because order items are included"})
+             
+             return super().destroy(request, *args, **kwargs)
+       
+
+class ReviewViewSet(ModelViewSet):
+     #cutom query : cz reviews show for every product : filter review for indivisual products.
+     def get_queryset(self):
+         return Review.objects.filter(product_id =self.kwargs['product_pk'])
+     
+
+     #use this method for => send data to Review serializer
+     def get_context_data(self) :
+         return {'product_id':self.kwargs['product_pk']}
+     
+     
+     serializer_class = ReviewSerializer
+
+
+class CartViewSet(CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin,GenericViewSet):
+     
+    #  queryset = Cart.objects.all()
+     queryset = Cart.objects.prefetch_related('items__product').all() #cart -> Fk-> CartItem(related_name=items), instide cartItem Fk-> Products(product) | optimize the query
+     serializer_class = CartSerializer
+
+
+#show single items of cart: 
+class CartItemViewSet(ModelViewSet): #tabels need , cart_id, product_id, quantity in DB.
+   
+    #allow http method : 
+    http_method_names = ['get', 'post','patch','delete'] #declare those methods which we want to use.
+
+    #for add cartItem use custom serializer: 
+    def get_serializer_class(self):
+         if self.request.method == "POST":
+              return AddCartItemSerializer #use for add new cartItem.
+         elif self.request.method == "PATCH":
+              return UpdateCartItemSerializer
+         
+         return CartItemSerializer # use for get() cartItem.
+    
+
+    def get_serializer_context(self): #data collect from urls , then send to serializer 
+         return {'cart_id':self.kwargs['cart_pk']}
+   
+
+
+     #need single cartItem hast cart_id column , so need cart_ID+ to catch  :
+    def get_queryset(self):
+          return CartItem.objects.\
+                        filter(cart_id=self.kwargs['cart_pk']).\
+                        select_related('product')
+
+
+
+#------------------------------Customer user -> JESON WEB TOKEN-------------------------------------------
+
+from rest_framework.decorators import action #get, put, delete ...details = retrive...
+from rest_framework.permissions import IsAuthenticated,AllowAny#permisson for users
+
+class CustomerViewSet(GenericViewSet, CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, DestroyModelMixin):
+     queryset = Customers.objects.all()
+     serializer_class = CustomerSerializer
+     permission_classes = [IsAuthenticated]
+
+     def get_permissions(self):
+          if  self.request.method == 'GET':
+               return [AllowAny()]
+          return [IsAuthenticated()]
+
+     @action(detail=False, methods=['GET', 'PUT'])
+     def me(self, request):#http://127.0.0.1:8000/store/customer/me/ -> this /me = def me(function). & request.user -> anonimus functions of classes.
+          customer, created = Customers.objects.get_or_create(user_id=request.user.id) #get_or_create -> method return 2 value: cutomerID, created/not_created boolean
+
+          if request.method == 'GET':#also show the user id , but user_id can't edit by user. that's why make the CustomerSerializer -> user_id(read_only)
+               serializer = CustomerSerializer(customer)
+               return Response(serializer.data)
+
+          elif request.method == 'PUT':
+               serializer = CustomerSerializer(customer, data=request.data)
+               serializer.is_valid(raise_exception=True)
+               serializer.save()
+               return Response(serializer.data)
+
+     
+
+
+-------------------------------------------------------------------------------------------------------------
+--------------------------------Custom Permissions. ---------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+store::permission.py=> 
+----------------------
+from rest_framework import permissions
+
+
+
+class IsAdminOrReadOnly(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS: #in safe methods has=> GET, HEAD, OPTIONS.
+            return True
+        return bool(request.user and request.user.is_staff)
+
+
+
+
+# class IsAdminOrReadOnly(BasePermission):
+#     def has_permission(self, request, view):
+#         if request.method == 'GET':
+#             return True
+#         return bool(request.user and request.user.is_stuff)
+
+---------------------------
+---------------------------
+store::views.py=> 
+---------------------------
+
+from rest_framework.response import Response #serializers to Json formater
+from store.models import Products,Collections,OrderItems,Review,Cart,CartItem,Customers
+from store.serializers import ProductSerializer,CollectionsSerializer,ReviewSerializer,CartSerializer,CartItemSerializer,AddCartItemSerializer,UpdateCartItemSerializer,CustomerSerializer
+from django.db.models import Count
+
+
+
+from rest_framework.viewsets import ModelViewSet
+from django_filters.rest_framework import DjangoFilterBackend# filter easyly with any Db.coloumn like price ...
+from rest_framework.filters import SearchFilter,OrderingFilter # for search,sorting -> product 
+from rest_framework.pagination import PageNumberPagination #paginations
+from .filters import ProductFilter 
+from store.paginations import DefaultPagination #cutom paginations.
+
+#import for cart:
+from rest_framework.mixins import CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin,UpdateModelMixin
+from rest_framework.viewsets import GenericViewSet
+from .permissions import IsAdminOrReadOnly
+
+class ProductViewSet(ModelViewSet):
+
+    queryset = Products.objects.all()
+    serializer_class = ProductSerializer
+
+    #for filter: =>-------------------------
+    filter_backends = [DjangoFilterBackend,SearchFilter,OrderingFilter]
+    # pagination_class = PageNumberPagination
+    pagination_class = DefaultPagination  #custom paginations
+    # filterset_fields = ['collections_id']
+    filterset_class = ProductFilter #import form custom file.
+    search_fields  = ['title', 'describtion'] #search box working with those fields.
+    ordering_fields = ['unit_price','last_update']
+    permission_classes = [IsAdminOrReadOnly]
+
+
+
+    def get_serializer_context(self): #for serializer extra variable /mehtod to send to serializer
+        return {'request':self.request}
+    
+    def destroy(self, request, *args, **kwargs):
+          if OrderItems.objects.filter(product__id=kwargs['pk']).count() > 0:  #aggregations-> count(), ORM query fn-> Count().
+                return Response({"error": "product can't be delete cause in orderitem"},)
+         
+          return super().destroy(request, *args, **kwargs)
+  
+
+
+
+
+# --------------------------------collections-------------------------------------
+
+
+
+class CollectionViewSet(ModelViewSet):
+        permission_classes = [IsAdminOrReadOnly]
+        
+        queryset = Collections.objects.annotate(products_count=Count('products')).all()
+        serializer_class = CollectionsSerializer
+        
+
+        def destroy(self, request, *args, **kwargs):
+             if OrderItems.products.filter(product__id=kwargs['pk']).count() > 0:  # Changed 'collection' to 'collection'
+                return Response({'error': "collections can't be deleted because order items are included"})
+             
+             return super().destroy(request, *args, **kwargs)
+       
+
+class ReviewViewSet(ModelViewSet):
+     #cutom query : cz reviews show for every product : filter review for indivisual products.
+     def get_queryset(self):
+         return Review.objects.filter(product_id =self.kwargs['product_pk'])
+     
+
+     #use this method for => send data to Review serializer
+     def get_context_data(self) :
+         return {'product_id':self.kwargs['product_pk']}
+     
+     
+     serializer_class = ReviewSerializer
+
+
+class CartViewSet(CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin,GenericViewSet):
+     
+    #  queryset = Cart.objects.all()
+     queryset = Cart.objects.prefetch_related('items__product').all() #cart -> Fk-> CartItem(related_name=items), instide cartItem Fk-> Products(product) | optimize the query
+     serializer_class = CartSerializer
+
+
+#show single items of cart: 
+class CartItemViewSet(ModelViewSet): #tabels need , cart_id, product_id, quantity in DB.
+   
+    #allow http method : 
+    http_method_names = ['get', 'post','patch','delete'] #declare those methods which we want to use.
+
+    #for add cartItem use custom serializer: 
+    def get_serializer_class(self):
+         if self.request.method == "POST":
+              return AddCartItemSerializer #use for add new cartItem.
+         elif self.request.method == "PATCH":
+              return UpdateCartItemSerializer
+         
+         return CartItemSerializer # use for get() cartItem.
+    
+
+    def get_serializer_context(self): #data collect from urls , then send to serializer 
+         return {'cart_id':self.kwargs['cart_pk']}
+   
+
+
+     #need single cartItem hast cart_id column , so need cart_ID+ to catch  :
+    def get_queryset(self):
+          return CartItem.objects.\
+                        filter(cart_id=self.kwargs['cart_pk']).\
+                        select_related('product')
+
+
+
+#------------------------------Customer user -> JESON WEB TOKEN-------------------------------------------
+
+from rest_framework.decorators import action #get, put, delete ...details = retrive...
+from rest_framework.permissions import IsAuthenticated,AllowAny#permisson for users
+
+class CustomerViewSet(GenericViewSet, CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, DestroyModelMixin):
+     queryset = Customers.objects.all()
+     serializer_class = CustomerSerializer
+     permission_classes = [IsAuthenticated]
+
+     def get_permissions(self):
+          if self.request.method == 'GET':
+               return [AllowAny()]
+          return [IsAuthenticated()]
+
+     @action(detail=False, methods=['GET', 'PUT'], permission_classes=[IsAuthenticated])
+     def me(self, request):#http://127.0.0.1:8000/store/customer/me/ -> this /me = def me(function). & request.user -> anonimus functions of classes.
+          customer, created = Customers.objects.get_or_create(user_id=request.user.id) #get_or_create -> method return 2 value: cutomerID, created/not_created boolean
+
+          if request.method == 'GET':#also show the user id , but user_id can't edit by user. that's why make the CustomerSerializer -> user_id(read_only)
+               serializer = CustomerSerializer(customer)
+               return Response(serializer.data)
+
+          elif request.method == 'PUT':
+               serializer = CustomerSerializer(customer, data=request.data)
+               serializer.is_valid(raise_exception=True)
+               serializer.save()
+               return Response(serializer.data)
+
+     
+
+
+     
+
+
+-------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+----------------------------------------Django Model Permission---------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+store::permissions.py=> 
+-----------------------
+from rest_framework import permissions
+
+
+
+class IsAdminOrReadOnly(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS: #in safe methods has=> GET, HEAD, OPTIONS.
+            return True
+        return bool(request.user and request.user.is_staff)
+
+
+
+#for Model permissions.
+class FullDjangoModelPermission(permissions.DjangoModelPermissions):
+    def __init__(self) -> None:
+        self.perms_map['GET']:  ['%(app_label)s.view_%(model_name)s'] #only get is we allow here . though user have all permessions but only get permission we just provid.
+
+-----------------------------
+-----------------------------
+store::views.py=> 
+-----------------------------
+
+from rest_framework.response import Response #serializers to Json formater
+from store.models import Products,Collections,OrderItems,Review,Cart,CartItem,Customers
+from store.serializers import ProductSerializer,CollectionsSerializer,ReviewSerializer,CartSerializer,CartItemSerializer,AddCartItemSerializer,UpdateCartItemSerializer,CustomerSerializer
+from django.db.models import Count
+
+
+
+from rest_framework.viewsets import ModelViewSet
+from django_filters.rest_framework import DjangoFilterBackend# filter easyly with any Db.coloumn like price ...
+from rest_framework.filters import SearchFilter,OrderingFilter # for search,sorting -> product 
+from rest_framework.pagination import PageNumberPagination #paginations
+from .filters import ProductFilter 
+from store.paginations import DefaultPagination #cutom paginations.
+
+#import for cart:
+from rest_framework.mixins import CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin,UpdateModelMixin
+from rest_framework.viewsets import GenericViewSet
+from .permissions import IsAdminOrReadOnly
+
+class ProductViewSet(ModelViewSet):
+
+    queryset = Products.objects.all()
+    serializer_class = ProductSerializer
+
+    #for filter: =>-------------------------
+    filter_backends = [DjangoFilterBackend,SearchFilter,OrderingFilter]
+    # pagination_class = PageNumberPagination
+    pagination_class = DefaultPagination  #custom paginations
+    # filterset_fields = ['collections_id']
+    filterset_class = ProductFilter #import form custom file.
+    search_fields  = ['title', 'describtion'] #search box working with those fields.
+    ordering_fields = ['unit_price','last_update']
+    permission_classes = [IsAdminOrReadOnly]
+
+
+
+    def get_serializer_context(self): #for serializer extra variable /mehtod to send to serializer
+        return {'request':self.request}
+    
+    def destroy(self, request, *args, **kwargs):
+          if OrderItems.objects.filter(product__id=kwargs['pk']).count() > 0:  #aggregations-> count(), ORM query fn-> Count().
+                return Response({"error": "product can't be delete cause in orderitem"},)
+         
+          return super().destroy(request, *args, **kwargs)
+  
+
+
+
+
+# --------------------------------collections-------------------------------------
+
+
+
+class CollectionViewSet(ModelViewSet):
+        permission_classes = [IsAdminOrReadOnly]
+        
+        queryset = Collections.objects.annotate(products_count=Count('products')).all()
+        serializer_class = CollectionsSerializer
+        
+
+        def destroy(self, request, *args, **kwargs):
+             if OrderItems.products.filter(product__id=kwargs['pk']).count() > 0:  # Changed 'collection' to 'collection'
+                return Response({'error': "collections can't be deleted because order items are included"})
+             
+             return super().destroy(request, *args, **kwargs)
+       
+
+class ReviewViewSet(ModelViewSet):
+     #cutom query : cz reviews show for every product : filter review for indivisual products.
+     def get_queryset(self):
+         return Review.objects.filter(product_id =self.kwargs['product_pk'])
+     
+
+     #use this method for => send data to Review serializer
+     def get_context_data(self) :
+         return {'product_id':self.kwargs['product_pk']}
+     
+     
+     serializer_class = ReviewSerializer
+
+
+class CartViewSet(CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin,GenericViewSet):
+     
+    #  queryset = Cart.objects.all()
+     queryset = Cart.objects.prefetch_related('items__product').all() #cart -> Fk-> CartItem(related_name=items), instide cartItem Fk-> Products(product) | optimize the query
+     serializer_class = CartSerializer
+
+
+#show single items of cart: 
+class CartItemViewSet(ModelViewSet): #tabels need , cart_id, product_id, quantity in DB.
+   
+    #allow http method : 
+    http_method_names = ['get', 'post','patch','delete'] #declare those methods which we want to use.
+
+    #for add cartItem use custom serializer: 
+    def get_serializer_class(self):
+         if self.request.method == "POST":
+              return AddCartItemSerializer #use for add new cartItem.
+         elif self.request.method == "PATCH":
+              return UpdateCartItemSerializer
+         
+         return CartItemSerializer # use for get() cartItem.
+    
+
+    def get_serializer_context(self): #data collect from urls , then send to serializer 
+         return {'cart_id':self.kwargs['cart_pk']}
+   
+
+
+     #need single cartItem hast cart_id column , so need cart_ID+ to catch  :
+    def get_queryset(self):
+          return CartItem.objects.\
+                        filter(cart_id=self.kwargs['cart_pk']).\
+                        select_related('product')
+
+
+
+#------------------------------Customer user -> JESON WEB TOKEN-------------------------------------------
+
+from rest_framework.decorators import action #get, put, delete ...details = retrive...
+from rest_framework.permissions import IsAuthenticated,AllowAny,DjangoModelPermissions,DjangoModelPermissionsOrAnonReadOnly#permisson for users
+from .permissions import FullDjangoModelPermission #cutom permission.
+
+class CustomerViewSet(ModelViewSet):
+     queryset = Customers.objects.all()
+     serializer_class = CustomerSerializer
+     permission_classes = [DjangoModelPermissionsOrAnonReadOnly] #use our custom class : FullDjangoModelPermission.
+
+     
+     @action(detail=False, methods=['GET','PUT'], permission_classes=[IsAuthenticated()])
+     def me(self, request):#http://127.0.0.1:8000/store/customer/me/ -> this /me = def me(function). & request.user -> anonimus functions of classes.
+          customer, created = Customers.objects.get_or_create(user_id=request.user.id) #get_or_create -> method return 2 value: cutomerID, created/not_created boolean
+
+          if request.method == 'GET':#also show the user id , but user_id can't edit by user. that's why make the CustomerSerializer -> user_id(read_only)
+               serializer = CustomerSerializer(customer)
+               return Response(serializer.data)
+
+          elif request.method == 'PUT':
+               serializer = CustomerSerializer(customer, data=request.data)
+               serializer.is_valid(raise_exception=True)
+               serializer.save()
+               return Response(serializer.data)
+
+     
+
+
+-----------------------------
+-----------------------------
+
+-------------------------------------------------------------------------------------------------------------
+--------------------------------------Custom Model Permission-----------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+store::permessions=> 
+---------------------
+from rest_framework import permissions
+
+
+
+class IsAdminOrReadOnly(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS: #in safe methods has=> GET, HEAD, OPTIONS.
+            return True
+        return bool(request.user and request.user.is_staff)
+
+
+
+
+class FullDjangoModelPermission(permissions.DjangoModelPermissions):
+    def __init__(self) -> None:
+        self.perms_map['GET']:  ['%(app_label)s.view_%(model_name)s'] #only get is we allow here . though user have all permessions but only get permission we just provid.
+
+
+#custom django model permission: 
+
+class ViewCustomerModelPermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user.has_perm('store.view_history')   
+
+
+----------------------------
+----------------------------
+store::views.py=> 
+----------------------------
+
+from rest_framework.response import Response #serializers to Json formater
+from store.models import Products,Collections,OrderItems,Review,Cart,CartItem,Customers
+from store.serializers import ProductSerializer,CollectionsSerializer,ReviewSerializer,CartSerializer,CartItemSerializer,AddCartItemSerializer,UpdateCartItemSerializer,CustomerSerializer
+from django.db.models import Count
+
+
+
+from rest_framework.viewsets import ModelViewSet
+from django_filters.rest_framework import DjangoFilterBackend# filter easyly with any Db.coloumn like price ...
+from rest_framework.filters import SearchFilter,OrderingFilter # for search,sorting -> product 
+from rest_framework.pagination import PageNumberPagination #paginations
+from .filters import ProductFilter 
+from store.paginations import DefaultPagination #cutom paginations.
+
+#import for cart:
+from rest_framework.mixins import CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin,UpdateModelMixin
+from rest_framework.viewsets import GenericViewSet
+from .permissions import IsAdminOrReadOnly
+
+class ProductViewSet(ModelViewSet):
+
+    queryset = Products.objects.all()
+    serializer_class = ProductSerializer
+
+    #for filter: =>-------------------------
+    filter_backends = [DjangoFilterBackend,SearchFilter,OrderingFilter]
+    # pagination_class = PageNumberPagination
+    pagination_class = DefaultPagination  #custom paginations
+    # filterset_fields = ['collections_id']
+    filterset_class = ProductFilter #import form custom file.
+    search_fields  = ['title', 'describtion'] #search box working with those fields.
+    ordering_fields = ['unit_price','last_update']
+    permission_classes = [IsAdminOrReadOnly]
+
+
+
+    def get_serializer_context(self): #for serializer extra variable /mehtod to send to serializer
+        return {'request':self.request}
+    
+    def destroy(self, request, *args, **kwargs):
+          if OrderItems.objects.filter(product__id=kwargs['pk']).count() > 0:  #aggregations-> count(), ORM query fn-> Count().
+                return Response({"error": "product can't be delete cause in orderitem"},)
+         
+          return super().destroy(request, *args, **kwargs)
+  
+
+
+
+
+# --------------------------------collections-------------------------------------
+
+
+
+class CollectionViewSet(ModelViewSet):
+        permission_classes = [IsAdminOrReadOnly]
+        
+        queryset = Collections.objects.annotate(products_count=Count('products')).all()
+        serializer_class = CollectionsSerializer
+        
+
+        def destroy(self, request, *args, **kwargs):
+             if OrderItems.products.filter(product__id=kwargs['pk']).count() > 0:  # Changed 'collection' to 'collection'
+                return Response({'error': "collections can't be deleted because order items are included"})
+             
+             return super().destroy(request, *args, **kwargs)
+       
+
+class ReviewViewSet(ModelViewSet):
+     #cutom query : cz reviews show for every product : filter review for indivisual products.
+     def get_queryset(self):
+         return Review.objects.filter(product_id =self.kwargs['product_pk'])
+     
+
+     #use this method for => send data to Review serializer
+     def get_context_data(self) :
+         return {'product_id':self.kwargs['product_pk']}
+     
+     
+     serializer_class = ReviewSerializer
+
+
+class CartViewSet(CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin,GenericViewSet):
+     
+    #  queryset = Cart.objects.all()
+     queryset = Cart.objects.prefetch_related('items__product').all() #cart -> Fk-> CartItem(related_name=items), instide cartItem Fk-> Products(product) | optimize the query
+     serializer_class = CartSerializer
+
+
+#show single items of cart: 
+class CartItemViewSet(ModelViewSet): #tabels need , cart_id, product_id, quantity in DB.
+   
+    #allow http method : 
+    http_method_names = ['get', 'post','patch','delete'] #declare those methods which we want to use.
+
+    #for add cartItem use custom serializer: 
+    def get_serializer_class(self):
+         if self.request.method == "POST":
+              return AddCartItemSerializer #use for add new cartItem.
+         elif self.request.method == "PATCH":
+              return UpdateCartItemSerializer
+         
+         return CartItemSerializer # use for get() cartItem.
+    
+
+    def get_serializer_context(self): #data collect from urls , then send to serializer 
+         return {'cart_id':self.kwargs['cart_pk']}
+   
+
+
+     #need single cartItem hast cart_id column , so need cart_ID+ to catch  :
+    def get_queryset(self):
+          return CartItem.objects.\
+                        filter(cart_id=self.kwargs['cart_pk']).\
+                        select_related('product')
+
+
+
+#------------------------------Customer user -> JESON WEB TOKEN-------------------------------------------
+
+from rest_framework.decorators import action #get, put, delete ...details = retrive...
+from rest_framework.permissions import IsAuthenticated,AllowAny,DjangoModelPermissions,DjangoModelPermissionsOrAnonReadOnly#permisson for users
+from .permissions import FullDjangoModelPermission,ViewCustomerModelPermission #cutom permission.
+
+class CustomerViewSet(ModelViewSet):
+     queryset = Customers.objects.all()
+     serializer_class = CustomerSerializer
+     permission_classes = [DjangoModelPermissionsOrAnonReadOnly] #use our custom class : FullDjangoModelPermission.
+
+
+     @action(detail=True, permission_classes=[ViewCustomerModelPermission]) #custom model permission
+     def history(self,request,pk):#http://127.0.0.1:8000/store/customer/1/history....
+          return Response('ok')
+     
+     @action(detail=False, methods=['GET','PUT'], permission_classes=[IsAuthenticated()])
+     def me(self, request):#http://127.0.0.1:8000/store/customer/me/ -> this /me = def me(function). & request.user -> anonimus functions of classes.
+          customer, created = Customers.objects.get_or_create(user_id=request.user.id) #get_or_create -> method return 2 value: cutomerID, created/not_created boolean
+
+          if request.method == 'GET':#also show the user id , but user_id can't edit by user. that's why make the CustomerSerializer -> user_id(read_only)
+               serializer = CustomerSerializer(customer)
+               return Response(serializer.data)
+
+          elif request.method == 'PUT':
+               serializer = CustomerSerializer(customer, data=request.data)
+               serializer.is_valid(raise_exception=True)
+               serializer.save()
+               return Response(serializer.data)
+
+     
+
+
+
+
+-------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+
+
 
 
 

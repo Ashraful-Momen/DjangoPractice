@@ -11,6 +11,7 @@ router = routers.DefaultRouter()
 router.register(r'product', views.ProductViewSet, basename='product') #assertions baseName error that's why add base name
 router.register(r'collection', views.CollectionViewSet)
 router.register(r'cart',views.CartViewSet,basename='cart')
+router.register(r'customer', views.CustomerViewSet, basename='customer')
 
 #for retrive reviews form product use => 
 product_router = routers.NestedDefaultRouter(router, r'product', lookup='product')

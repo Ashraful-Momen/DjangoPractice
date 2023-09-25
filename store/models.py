@@ -104,7 +104,7 @@ class Customers(models.Model):
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
-    phone = models.IntegerField()
+    phone = models.IntegerField(null=True,blank=True)
     birth_date = models.DateField(null=True)
     membership = models.CharField(max_length=17, choices=MEMBERSHIP_CHOICES, default=MEMBERSHIP_BRONZE)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -122,6 +122,11 @@ class Customers(models.Model):
 
     class Meta:
         ordering = ['user__first_name', 'user__last_name']
+
+
+        #custom model permission: 
+        permissions = [('view_history', 'Can view history')]
+        #then run >>> python manage.py makemigrations, migrate...
 
 
 class Order(models.Model):

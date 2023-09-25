@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = BASE_DIR / 'templates'
@@ -27,6 +28,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_filters',
     'rest_framework',
+    'djoser', #this package for token base Auth.
     'playground',
     'store',
     'taqs',
@@ -34,7 +36,32 @@ INSTALLED_APPS = [
     'debug_toolbar',
     'faker',
     'core',
+    
 ]
+#token base Authentications => 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+       
+    ),
+}
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+   'AUTH_HEADER_TYPES': ('JWT',),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1)
+}
+
+
+
+
+Djoser = {
+    'SERIALIZER': {
+        'user_create': 'core.serializers.UserCreateSerializer',
+        'current_user': 'core.serializers.UserSerializer'
+    }
+}
 
 AUTH_USER_MODEL = 'core.User' #appName.ModelName= core.User => core app customize the buildin django auth model.
 
