@@ -104,7 +104,7 @@ class Customers(models.Model):
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
-    phone = models.IntegerField(null=True,blank=True)
+    phone = models.IntegerField(null=True)
     birth_date = models.DateField(null=True)
     membership = models.CharField(max_length=17, choices=MEMBERSHIP_CHOICES, default=MEMBERSHIP_BRONZE)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -143,7 +143,7 @@ class Order(models.Model):
     max_length=23, choices=PAYMENT_STATUS_CHOICE, default=PAYMENT_STATUS_PENDING
     )
 
-    customers = models.ForeignKey(Customers,on_delete=models.PROTECT) #if accidently delete the Customers , we don't delete the order .
+    customers = models.ForeignKey(Customers, on_delete=models.PROTECT) #if accidently delete the Customers , we don't delete the order .
 
     class Meta: 
         permissions=[
@@ -153,7 +153,7 @@ class Order(models.Model):
 
 class OrderItems(models.Model):
     order = models.ForeignKey(Order,on_delete=models.PROTECT, related_name='items')
-    products = models.ForeignKey(Products,on_delete=models.PROTECT, related_name='orderItems')
+    product = models.ForeignKey(Products,on_delete=models.PROTECT, related_name='orderItems')
     quantity = models.PositiveSmallIntegerField()
     unit_price = models.DecimalField(max_digits=6,decimal_places=2)
 

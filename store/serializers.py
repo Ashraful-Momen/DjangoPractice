@@ -130,13 +130,21 @@ class CustomerSerializer(serializers.ModelSerializer):
         fields = ['id', 'user_id', 'phone', 'email', 'birth_date', 'membership']
 
 
+
+
+
+
+
+
 # ----------------------------------OrderItem Serializer-------------------------------------------------------
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    product = SimpleProductSerializer()
 
     class Meta: 
         model = OrderItems
-        fields = ['id', 'products', 'unit_price', 'quantity']
+        fields = ['id', 'product', 'unit_price', 'quantity']
+
 
 
 
@@ -149,3 +157,75 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ['id','payment_status', 'customers', 'place_order','items' ]
+
+
+# ----------------------------------------Create OrderSerializer--------------------------------------------
+from django.db import transaction
+import uuid
+class CreateOrderSerializer(serializers.Serializer):
+     #we are not uing the model serializer here...
+
+       #for real life senerio for creating order , we collect data from cart . that's why we use cart_id varibale here .
+    cart_id = serializers.UUIDField()#for creating the order we collect cart_ID ,
+
+    
+    #if cart_id does not exit then user can't create the order: 
+   
+    
+    
+    def validate_cart_id(self, cart_id):
+        if not Cart.objects.filter(pk=cart_id).exists() and Cart.objects.filter(pk=cart_id).count()==0 :
+            raise serializers.ValidationError('Cart ID not found!')
+        elif CartItem.objects.filter(cart_id=cart_id).count()==0:
+            raise serializers.ValidationError('Cart is Empty!')
+        return cart_id
+  
+
+    def save(self, user_id, **kwargs):
+        with transaction.atomic():
+            cart_id = self.validated_data['cart_id']#get from user form...
+            user_id = self.context.get('user_id')#get from views.
+            customer, created = Customers.objects.get_or_create(user_id=user_id)
+            order = Order.objects.create(customers=customer)
+
+
+            #for creating the order items : --------------------------------------------------------
+        
+            #create a cart_id then create a cart_items: then create OrderItems.
+            #using CartItem model for filter card_id from cart table.(then we get the product )
+            cart_items = CartItem.objects.filter(cart_id=cart_id).select_related('product')
+
+            order_items = [
+                OrderItems(
+                    order=order,
+                    product=item.product,
+                    unit_price=item.product.unit_price,
+                    quantity=item.quantity
+                )
+                for item in cart_items
+            ]
+
+            OrderItems.objects.bulk_create(order_items)
+
+            #now delete the cartItem cz we use it for creating OrderItems: 
+
+             # Corrected deletion of cart items
+            CartItem.objects.filter(cart_id=cart_id).delete()
+
+            return order #return to the views-> create()
+
+            #we using the model operations=>  order,OrderItem,CartItem, then delete the cartItem ,so if 1 operations 
+            #fail then other operations working not properly .... if 1 operation is not work then otherOperations 
+            #will stop. that's why we use Tracsictions ORM methods.
+
+
+# -----------------------------------Udpdate serializers----------------------------------
+
+class UpdateOrderSerializer(serializers.ModelSerializer):
+    #just only update the payment_status
+    class Meta: 
+        model = Order 
+        fields = ['payment_status']
+
+
+
