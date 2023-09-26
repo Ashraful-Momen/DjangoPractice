@@ -7327,10 +7327,142 @@ class Review(models.Model):
 
 
 -------------------------------------------------------------------------------------------------------------
+----------------------------------------Singnal---------------------------------------------------------------------
 -------------------------------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------------------------------
+function fire with save or delete data into DB as pre/post.
 
 
+store::signal.py=> 
+------------------
+from django.conf import settings #for custom user model.
+from django.db.models.signals import post_save 
+from django.dispatch import receiver
+from .models import Customers
+
+
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+def create_customer_for_new_user(sender,**kwargs):
+    if kwargs['created']:
+        Customers.objects.create(user=kwargs['instance'])
+
+--------------------
+store::apps.py=> 
+--------------------
+--------------------
+from django.conf import settings 
+from django.db.models.signals import post_save 
+from django.dispatch import receiver
+from .models import Customers
+
+
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+def create_customer_for_new_user(sender,**kwargs):
+    if kwargs['created']:
+        Customers.objects.create(user=kwargs['instance'])
+
+
+-------------------------------------------------------------------------------------------------------------
+---------------------------------custom Singnal when creating order then notify----------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+
+store::signal::__init__.py=> 
+----------------------------
+----------------------------
+from django.dispatch import Signal
+
+order_created = Signal()
+----------------------------
+----------------------------
+store::serializer.py=> 
+----------------------------
+----------------------------
+from django.db import transaction
+from .singnals import order_created #
+class CreateOrderSerializer(serializers.Serializer):
+     #we are not uing the model serializer here...
+
+       #for real life senerio for creating order , we collect data from cart . that's why we use cart_id varibale here .
+    cart_id = serializers.UUIDField()#for creating the order we collect cart_ID ,
+
+    
+    #if cart_id does not exit then user can't create the order: 
+   
+    
+    
+    def validate_cart_id(self, cart_id):
+        if not Cart.objects.filter(pk=cart_id).exists() and Cart.objects.filter(pk=cart_id).count()==0 :
+            raise serializers.ValidationError('Cart ID not found!')
+        elif CartItem.objects.filter(cart_id=cart_id).count()==0:
+            raise serializers.ValidationError('Cart is Empty!')
+        return cart_id
+  
+
+    def save(self, **kwargs):
+        with transaction.atomic():
+            cart_id = self.validated_data['cart_id']#get from user form...
+            user_id = self.context.get('user_id')#get from views.
+            customer, created = Customers.objects.get_or_create(user_id=user_id)
+            order = Order.objects.create(customers=customer)
+
+
+            #for creating the order items : --------------------------------------------------------
+        
+            #create a cart_id then create a cart_items: then create OrderItems.
+            #using CartItem model for filter card_id from cart table.(then we get the product )
+            cart_items = CartItem.objects.filter(cart_id=cart_id).select_related('product')
+
+            order_items = [
+                OrderItems(
+                    order=order,
+                    product=item.product,
+                    unit_price=item.product.unit_price,
+                    quantity=item.quantity
+                )
+                for item in cart_items
+            ]
+
+            OrderItems.objects.bulk_create(order_items)
+
+            #now delete the cartItem cz we use it for creating OrderItems: 
+
+         
+
+            #created singnal fn instance: 
+            order_created.send_robust(self.__class__, order = order) #when created the order signal generated.
+            
+            # Corrected deletion of cart items
+            CartItem.objects.filter(cart_id=cart_id).delete()
+            return order #return to the views-> create()
+
+            #we using the model operations=>  order,OrderItem,CartItem, then delete the cartItem ,so if 1 operations 
+            #fail then other operations working not properly .... if 1 operation is not work then otherOperations 
+            #will stop. that's why we use Tracsictions ORM methods.
+----------------------------
+----------------------------
+core::handler.py=>
+----------------------------
+----------------------------
+from django.dispatch import receiver
+from store.singnals import order_created #__init.py form store.signal folder.
+
+
+@receiver(order_created)
+def on_order_created(sender,**kwargs):
+    print(kwargs['order'])
+----------------------------
+----------------------------
+core::app.py=> 
+----------------------------
+----------------------------
+from django.apps import AppConfig
+
+
+class CoreConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'core'
+
+    def ready(self) -> None:
+        import core.signal.handler
 
 
 

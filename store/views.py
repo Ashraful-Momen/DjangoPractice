@@ -134,7 +134,7 @@ class CustomerViewSet(ModelViewSet):
      
      @action(detail=False, methods=['GET','PUT'], permission_classes=[IsAuthenticated()])
      def me(self, request):#http://127.0.0.1:8000/store/customer/me/ -> this /me = def me(function). & request.user -> anonimus functions of classes.
-          customer, created = Customers.objects.get_or_create(user_id=request.user.id) #get_or_create -> method return 2 value: cutomerID, created/not_created boolean
+          customer, created = Customers.objects.get(user_id=request.user.id) #get -> method return 2 value: cutomerID, created/not_created boolean
 
           if request.method == 'GET':#also show the user id , but user_id can't edit by user. that's why make the CustomerSerializer -> user_id(read_only)
                serializer = CustomerSerializer(customer)
@@ -154,23 +154,25 @@ from .serializers import OrderSerializer,CreateOrderSerializer,OrderItemSerializ
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 
 class OrderViewSet(ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
     #ALLOW THE METHOD 
-    http_method_names = ['get', 'put','patch','delete','options']
+    # http_method_names = ['get','patch','delete','head','options']
 
-    #route permission: 
-    def get_permissions(self):
-        if self.request.method in ['PATCH','DELETE']:
-             return [IsAdminUser()] 
-        return [IsAuthenticated()]
+    # route permission: 
+    # def get_permissions(self):
+    #     if self.request.method in ['POST','DELETE']:
+    #          return [IsAdminUser()] 
+    #     return [IsAuthenticated()]
 
-    #after createing the orderItem user can the order: that's why use this create methods.
-    def create(self, request, *args, **kwargs):
-        serializer = CreateOrderSerializer(data=request.data, context={'user_id': self.request.user.id})
-        serializer.is_valid(raise_exception=True)
-        order = serializer.save()
-        serializer = OrderItemSerializer(order)
-        return Response(serializer.data)
+    # after createing the orderItem user can see the order: that's why use this create methods.
+    # def create(self, request, *args, **kwargs):
+    #     serializer = CreateOrderSerializer(data=request.data, context={'user_id': self.request.user.id})
+    #     serializer.is_valid(raise_exception=True)
+    #     order = serializer.save()
+    #     serializer = OrderItemSerializer(order)
+    #     return Response(serializer.data)
+
+
 
 
     def get_serializer_class(self):
@@ -189,6 +191,7 @@ class OrderViewSet(ModelViewSet):
         if user.is_staff: #if user hast permission as an stuff then can see the order.
             return Order.objects.all()
 
-        customer, created = Customers.objects.only('id').get_or_create(user_id=user.id)
+        customer, created = Customers.objects.only('id').get(user_id=user.id)
         return Order.objects.filter(customers=customer) #send to the serializer 
 
+   

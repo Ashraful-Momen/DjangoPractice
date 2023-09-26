@@ -138,13 +138,19 @@ class CustomerSerializer(serializers.ModelSerializer):
 
 # ----------------------------------OrderItem Serializer-------------------------------------------------------
 
+# class OrderItemSerializer(serializers.ModelSerializer):
+#     product = SimpleProductSerializer()
+
+#     class Meta: 
+#         model = OrderItems
+#         fields = ['id', 'product', 'unit_price', 'quantity']
+
 class OrderItemSerializer(serializers.ModelSerializer):
     product = SimpleProductSerializer()
 
     class Meta: 
         model = OrderItems
         fields = ['id', 'product', 'unit_price', 'quantity']
-
 
 
 
@@ -161,7 +167,8 @@ class OrderSerializer(serializers.ModelSerializer):
 
 # ----------------------------------------Create OrderSerializer--------------------------------------------
 from django.db import transaction
-import uuid
+from .singnals import order_created #
+
 class CreateOrderSerializer(serializers.Serializer):
      #we are not uing the model serializer here...
 
@@ -181,7 +188,7 @@ class CreateOrderSerializer(serializers.Serializer):
         return cart_id
   
 
-    def save(self, user_id, **kwargs):
+    def save(self,**kwargs):
         with transaction.atomic():
             cart_id = self.validated_data['cart_id']#get from user form...
             user_id = self.context.get('user_id')#get from views.
@@ -209,14 +216,22 @@ class CreateOrderSerializer(serializers.Serializer):
 
             #now delete the cartItem cz we use it for creating OrderItems: 
 
-             # Corrected deletion of cart items
-            CartItem.objects.filter(cart_id=cart_id).delete()
+         
 
+            #created singnal fn instance: 
+            order_created.send_robust(self.__class__, order = order) #when created the order signal generated.
+            
+            # Corrected deletion of cart items
+            # CartItem.objects.filter(cart_id=cart_id).delete()
             return order #return to the views-> create()
 
             #we using the model operations=>  order,OrderItem,CartItem, then delete the cartItem ,so if 1 operations 
             #fail then other operations working not properly .... if 1 operation is not work then otherOperations 
             #will stop. that's why we use Tracsictions ORM methods.
+
+
+
+
 
 
 # -----------------------------------Udpdate serializers----------------------------------
