@@ -1219,5 +1219,193 @@ class CollectionsAdmin(admin.ModelAdmin):
 }
 -------------------------
 --------------------------------------------------------------------------------------------------
+--------------------------------Send Main : SMTP server setup------------------------------------------------------------------
 --------------------------------------------------------------------------------------------------
---------------------------------------------------------------------------------------------------
+amshu@DESKTOP-DQD3N2V MINGW64 /i/Django Code Practice From Mosh/1.Django First Part (django3rd-part)
+$ docker pull rnwood/smtp4dev
+Using default tag: latest
+Error response from daemon: Head "https://registry-1.docker.io/v2/rnwood/smtp4dev/manifests/latest": unauthorized: incorrect username or password
+
+amshu@DESKTOP-DQD3N2V MINGW64 /i/Django Code Practice From Mosh/1.Django First Part (django3rd-part)
+$ docker login -u amshuvo64
+Password: 
+Login Succeeded
+
+Logging in with your password grants your terminal complete access to your account.
+For better security, log in with a limited-privilege personal access token. Learn more at https://docs.docker.com/go/access-tokens/
+
+amshu@DESKTOP-DQD3N2V MINGW64 /i/Django Code Practice From Mosh/1.Django First Part (django3rd-part)
+$ docker pull rnwood/smtp4dev
+Using default tag: latest
+latest: Pulling from rnwood/smtp4dev
+68ced04f60ab: Pull complete
+4ddb1a571238: Pull complete
+94b78a0446e2: Pull complete
+b48f8e1b0b06: Pull complete
+a41ea3d79519: Pull complete
+020abfffe9ae: Pull complete
+Digest: sha256:9888dd5d2d4464a815b6b166d7b62bb7a91180d26e5117a54c791c31cf17fccd
+Status: Downloaded newer image for rnwood/smtp4dev:latest
+docker.io/rnwood/smtp4dev:latest
+
+What's Next?
+  View summary of image vulnerabilities and recommendations → docker scout quickview rnwood/smtp4dev
+
+amshu@DESKTOP-DQD3N2V MINGW64 /i/Django Code Practice From Mosh/1.Django First Part (django3rd-part)
+$ docker run --rm -it -p 3000:80 -p 2525:25 rnwood/smtp4dev
+smtp4dev version 3.1.4
+https://github.com/rnwood/smtp4dev
+.NET Core runtime version: .NET Core 3.1.2
+
+
+>>>>> localhost:3000
+
+
+---------------------------------------------------------------------------------------------------------
+---------------------------------------Configure Fake SMTP------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+storefront::setting.py => 
+--------------------------
+
+#fake smtp configure: --------------------------------
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'localhost'
+EMAIL_HOST_USER = ''
+EMAIL_HOST_PASSWORD = ''
+EMAIL_PORT = 2525
+DEFAULT_FROM_EMAIL = 'from@shuvo.com'
+------------------------------------
+playground::urls.py-> 
+----------------------
+#fake smtp configure: --------------------------------
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'localhost'
+EMAIL_HOST_USER = ''
+EMAIL_HOST_PASSWORD = ''
+EMAIL_PORT = 2525
+DEFAULT_FROM_EMAIL = 'from@shuvo.com'
+
+ADMINS = [
+    ('Shuvo', 'kali@Shuvo.com')
+]
+------------------------
+------------------------
+playground::views.py=> 
+------------------------
+from django.shortcuts import render
+from django.http import HttpResponse 
+from django.core.mail import send_mail, mail_admins, send_mass_mail,BadHeaderError #for log main address use send_mass_mail
+
+# Create your views here.
+
+def calculate():
+    x = 1
+    y = 2
+    return x
+
+def say_hello(request):
+    x = calculate()
+    try:
+        # send_mail('subject', 'message', 'info@shuvo.com',['bob@shuvo.com']) #From:	info@shuvo.com ; To:	bob@shuvo.com
+        mail_admins('subject','message plain text',html_message='hello sms')
+
+
+        #send Mail with file: 
+        message = EmailMessage('subject','message','from@shuvo.com', ['get@shuvo.com'])
+        message.attach_file('playground/static/img/MyIMG.jpg')
+        message.send()    
+    except BadHeaderError:
+        pass
+    return render(request, 'hello.html',{"name":"Shuvo"})
+    # return HttpResponse("Hello World")
+
+
+
+
+def sendMain(request):
+    try:
+        send_mail('subject', 'message', 'info@shuvo.com',['bob@shuvo.com'])
+    except BadHeaderError:
+        pass
+    return render(request, 'hello.html',{"name":"Shuvo"})
+------------------------
+playground::views.py=> 
+----------------------
+-------------------------------------Templated Mail--------------------------------------------------------------------
+#for template mail : download the package => django-templated-mail . 
+
+#inside playground app >>> create folder >>> email >>> hello.html=> 
+------------------------------------------------------------------
+{% block subject%}
+<h1>this is the new subject</h1>
+{% endblock%}
+
+
+{% block massage_body%}
+<h1>Hello {{name}}!</h1>
+{% endblock%}
+---------------------------------------------------------------------
+playground::views.py=> 
+------------------------
+from django.shortcuts import render
+from django.http import HttpResponse 
+from django.core.mail import EmailMessage,send_mail, mail_admins, send_mass_mail,BadHeaderError #for log main address use send_mass_mail
+from templated_mail.mail import BaseEmailMessage
+# Create your views here.
+
+def calculate():
+    x = 1
+    y = 2
+    return x
+
+def say_hello(request):
+    x = calculate()
+    try:
+        # send_mail('subject', 'message', 'info@shuvo.com',['bob@shuvo.com']) #From:	info@shuvo.com ; To:	bob@shuvo.com
+        # mail_admins('subject','message plain text',html_message='hello sms')  
+
+        #send Mail with file: -------------------------
+        # message = EmailMessage('subject','message','from@shuvo.com', ['get@shuvo.com'])
+        # message.attach_file('playground/static/img/MyIMG.jpg')
+        # message.send()
+
+        #Email with html page+dynamic Mail:---------------------------
+        message = BaseEmailMessage(
+            template_name='hello.html',
+            context={'name':'Shuvo'}
+        )
+        message.send(['get@shuvo.com'])
+
+    except BadHeaderError:
+        pass
+    return render(request, 'hello.html',{"name":"Shuvo"})
+    # return HttpResponse("Hello World")
+
+
+
+
+def sendMain(request):
+    try:
+        send_mail('subject', 'message', 'info@shuvo.com',['bob@shuvo.com'])
+    except BadHeaderError:
+        pass
+    return render(request, 'hello.html',{"name":"Shuvo"})
+-------------------------------
+setting.py => 
+-------------------------------
+#fake smtp configure: --------------------------------
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'localhost'
+EMAIL_HOST_USER = ''
+EMAIL_HOST_PASSWORD = ''
+EMAIL_PORT = 2525
+DEFAULT_FROM_EMAIL = 'from@shuvo.com'
+
+ADMINS = [
+    ('Shuvo', 'kali@Shuvo.com')
+]
+---------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
