@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'debug_toolbar',
     'faker',
     'core',
+    'corsheaders',
     
 ]
 #token base Authentications => 
@@ -67,6 +68,7 @@ Djoser = {
 AUTH_USER_MODEL = 'core.User' #appName.ModelName= core.User => core app customize the buildin django auth model.
 
 MIDDLEWARE = [
+     "corsheaders.middleware.CorsMiddleware",
     'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -94,6 +96,10 @@ TEMPLATES = [
         },
     },
 ]
+
+
+CORS_ALLOWED_ORIGINS= ['http://127.0.0.1:8001']
+
 
 INTERNAL_IPS = [
     # ...

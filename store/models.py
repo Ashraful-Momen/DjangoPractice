@@ -44,7 +44,8 @@ class Products (models.Model):
     class Meta: 
         ordering = ['title']
 
-
+from store.validators import validate_file_size
+from django.core.validators import MinValueValidator, FileExtensionValidator #file extensions checkers.
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Products, on_delete=models.CASCADE,related_name='product')

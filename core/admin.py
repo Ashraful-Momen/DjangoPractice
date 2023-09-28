@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db import models
 
 #import file for customer admin user model register: 
 from store.models import Products
@@ -8,6 +9,7 @@ from taqs.models import TaggItem
 # --------------------------------------Main import File----------------------
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import User
+
 
 # 
 @admin.register(User)
@@ -26,4 +28,5 @@ class UserAdmin(BaseUserAdmin):
             },
         ),
     )
+
 

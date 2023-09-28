@@ -5,18 +5,35 @@ from django.contrib import admin
 from django.db.models.query import QuerySet
 from django.http.request import HttpRequest
 from django.db.models import Count,Min,Max,Avg,Sum
-
+from .models import ProductImage
 from . import models
+from django.utils.html import format_html
 
+
+#for show the product image: 
+class ProductImageInline(admin.TabularInline): #for show img in admin panel .
+    model = ProductImage
+    readonly_fields = ['thumbnail']
+
+    def thumbnail(self,instance):
+        if instance.image.name !='':
+            return format_html(f'<img src="{instance.image.url}"  class="thumbnail"   > ')
+        return ''
 
 @admin.register(models.Products)
 class ProductAdmin(admin.ModelAdmin):
     list_display = ['title', 'unit_price', 'inventory_status', 'collections_title'] # show the title and unit_price in admin page, product has a link with collections table with collections column.
     list_editable = ['unit_price'] #now can edit -> 'unit_price' column.
+    inlines = [ProductImageInline] #********show img in admin panel .
     list_per_page = 10 #paginations .
     ordering = ['title', 'unit_price'] #accending order with titel and followed by unit_price.
     list_select_related = ['collections'] # Product Fk with Collections , collections form collections table in Product table
 
+    #import custom css from static folder: 
+    class Media: 
+        css = {
+            'all':['/static/img.css']
+        }
 
     def collections_title(self,product): #this product varible reffer to the Product Models.
         return product.collections.title 
@@ -30,6 +47,8 @@ class ProductAdmin(admin.ModelAdmin):
         if product.inventory < 10:
             return 'Low'
         return 'Ok'
+    
+    
     
 
 @admin.register(models.Order)
