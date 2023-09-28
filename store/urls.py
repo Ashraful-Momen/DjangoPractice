@@ -17,6 +17,7 @@ router.register(r'order', views.OrderViewSet, basename='order')
 #for retrive reviews form product use => 
 product_router = routers.NestedDefaultRouter(router, r'product', lookup='product')
 product_router.register(r'review', views.ReviewViewSet, basename='product-reviews')
+product_router.register(r'images',views.ProductIamgeViewSet, basename='images')
 
 #for retrive cartItem form cart use=> 
 cart_router = routers.NestedDefaultRouter(router, r'cart', lookup='cart') # send to cart_pk to CartItemViews.

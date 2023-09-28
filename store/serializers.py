@@ -2,22 +2,98 @@ from decimal import Decimal
 from rest_framework import serializers
 from store.models import Products,Collections,Review,Cart,CartItem,Customers,Order,OrderItems
 
-class ProductSerializer(serializers.ModelSerializer):
+
+
+# ==========================================Django Part 3===========================================
+# ==========================================Product Image===========================================
+
+from .models import ProductImage
+
+class ProductImageSerializer(serializers.ModelSerializer):
+
+    #create product image : 
+    def create(self, validated_data):
+        product_id = self.context['product_id']
+        return ProductImage.objects.create(product_id=product_id,**validated_data)
     
 
-    class Meta : 
-        model = Products
-        fields = ['title', 'price', 'collections','price_with_tax','inventory','describtion'] #first search fields form model , if not find . then search => price , collections, tax_with price
+    class Meta: 
+        model = ProductImage
+        fields = ['id', 'image']
 
+
+
+# ==========================================Django Part 3===========================================
+
+# class ProductSerializer(serializers.ModelSerializer):
+
+#     images = ProductImageSerializer(many=True, read_only=True)
+    
+
+    
   
-    price = serializers.DecimalField(max_digits=6, decimal_places=2, source='unit_price') #custome name price => comes from unit_prime -> product(model)
+#     price = serializers.DecimalField(max_digits=6, decimal_places=2, source='unit_price') #custome name price => comes from unit_prime -> product(model)
+#     price_with_tax = serializers.SerializerMethodField(method_name='calculate_tax')
+
+#     def calculate_tax(self, product:Products):
+#         return product.unit_price * Decimal(1.1)
+    
+#     class Meta : 
+#         model = Products
+#         fields = ['id','title', 'price', 'collections','price_with_tax','inventory','describtion','images'] #first search fields form model , if not find . then search => price , collections, tax_with price
+
+
+
+# class ProductSerializer(serializers.ModelSerializer):
+#     images = serializers.SerializerMethodField()
+
+#     price = serializers.DecimalField(max_digits=6, decimal_places=2, source='unit_price')
+#     price_with_tax = serializers.SerializerMethodField(method_name='calculate_tax')
+
+#     def calculate_tax(self, product: Products):
+#         return product.unit_price * Decimal(1.1)
+
+#     def get_images(self, product: Products):
+#         images = ProductImage.objects.filter(product=product)
+#         return ProductImageSerializer(images, many=True).data
+
+#     class Meta:
+#         model = Products
+#         fields = ['id', 'title', 'price', 'collections', 'price_with_tax', 'inventory', 'describtion', 'images']
+
+
+# class ProductSerializer(serializers.ModelSerializer):
+#     images = serializers.SerializerMethodField()
+
+#     price = serializers.DecimalField(max_digits=6, decimal_places=2, source='unit_price')
+#     price_with_tax = serializers.SerializerMethodField(method_name='calculate_tax')
+
+#     def calculate_tax(self, product: Products):
+#         return product.unit_price * Decimal(1.1)
+
+#     def get_images(self, product: Products):
+#         images = ProductImage.objects.filter(product=product)
+#         return [{'id': img.id, 'image': self.context['request'].build_absolute_uri(img.image.url)} for img in images]
+
+#     class Meta:
+#         model = Products
+#         fields = ['id', 'title', 'price', 'collections', 'price_with_tax', 'inventory', 'describtion', 'images']
+
+class ProductSerializer(serializers.ModelSerializer):
+    images = ProductImageSerializer(many=True, read_only=True)  # Assuming ProductImageSerializer is defined
+
+    price = serializers.DecimalField(max_digits=6, decimal_places=2, source='unit_price')
     price_with_tax = serializers.SerializerMethodField(method_name='calculate_tax')
 
-    def calculate_tax(self, product:Products):
+    def calculate_tax(self, product: Products):
         return product.unit_price * Decimal(1.1)
+    
+    class Meta:
+        model = Products
+        fields = ['id', 'title', 'price', 'collections', 'price_with_tax', 'inventory', 'describtion', 'images']
 
 
-
+# ----------------------------------------------------------------------------------------------
 class CollectionsSerializer(serializers.ModelSerializer):
     products_count = serializers.IntegerField(read_only=True)  # Add this line
 

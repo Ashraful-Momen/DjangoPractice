@@ -1,0 +1,1033 @@
+setup the setting.py for media folder .for uploading image.
+for imgae upload we have to first install the Pillow package. 
+
+--------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------
+setting.py=> 
+---------------
+from pathlib import Path
+
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+TEMPLATES_DIR = BASE_DIR / 'templates'
+MEDIA_DIR = BASE_DIR / 'media'
+
+# Quick-start development settings - unsuitable for production
+# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = 'django-insecure-oillj015g9y(t@95hv62d&!zp*jjrg06n$7h*y-vw7bgx!_7$6'
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = True
+
+ALLOWED_HOSTS = []
+
+
+# Application definition
+
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'django_filters',
+    'rest_framework',
+    'djoser', #this package for token base Auth.
+    'playground',
+    'store',
+    'taqs',
+    'likes', 
+    'debug_toolbar',
+    'faker',
+    'core',
+    
+]
+#token base Authentications => 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+       
+    ),
+}
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+   'AUTH_HEADER_TYPES': ('JWT',),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1)
+}
+
+
+
+
+Djoser = {
+    'SERIALIZER': {
+        'user_create': 'core.serializers.UserCreateSerializer',
+        'current_user': 'core.serializers.UserSerializer'
+    }
+}
+
+AUTH_USER_MODEL = 'core.User' #appName.ModelName= core.User => core app customize the buildin django auth model.
+
+MIDDLEWARE = [
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+ROOT_URLCONF = 'storefront.urls'
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [TEMPLATES_DIR,],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+INTERNAL_IPS = [
+    # ...
+    "127.0.0.1",
+    # ...
+]
+
+WSGI_APPLICATION = 'storefront.wsgi.application'
+
+
+# Database
+# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'storefront',
+        'HOST':'localhost',
+        'PORT':'3306',
+        'USER': 'storefront',
+        'PASSWORD': '786Shuvo',
+         'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        },
+        
+    }
+}
+
+
+# Password validation
+# https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
+
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
+
+
+# Internationalization
+# https://docs.djangoproject.com/en/4.2/topics/i18n/
+
+LANGUAGE_CODE = 'en-us'
+
+TIME_ZONE = 'UTC'
+
+USE_I18N = True
+
+USE_TZ = True
+
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/4.2/howto/static-files/
+
+STATIC_URL = 'static/'
+MEDIA_URL = 'media/'
+MEDIA_ROOT = MEDIA_DIR
+
+# Default primary key field type
+# https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# REST_FRAMEWORK = {
+#     'PAGE_SIZE': 10
+# }
+
+REST_FRAMEWORK = {
+    # 'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination', #if you default pagination then don't we it.
+    # 'PAGE_SIZE': 10,  # Set your desired page size here( don't need if use default paginations).
+}
+
+
+
+
+----------------------------------------------------------
+storefront::urls.py=> 
+=======================
+from django.contrib import admin
+from django.urls import path, include
+from playground import views
+from django.conf import settings
+from django.conf.urls.static import static
+
+
+
+admin.site.site_header = "StoreFront " #admin page heading 
+admin.site.index_title = "Admin" #admin page title
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('playground/', include('playground.urls')),
+    path('store/', include('store.urls')),
+    path('auth/',include('djoser.urls')),
+    path('auth/',include('djoser.urls.jwt')),
+    path("__debug__/", include("debug_toolbar.urls")),
+] 
+
+if settings.DEBUG:
+    urlpatterns+=static(settings.MEDIA_URL , document_root = settings.MEDIA_ROOT)
+
+
+
+
+>>> http://127.0.0.1:8000/media/MyIMG.jpg
+--------------------------------------------
+store::urls.py=> 
+----------------
+from django.urls import path
+from store import views
+#default router show the api endpoint urls.
+from rest_framework_nested import routers
+
+
+app_name = 'store'
+
+
+router = routers.DefaultRouter()
+router.register(r'product', views.ProductViewSet, basename='product') #assertions baseName error that's why add base name
+router.register(r'collection', views.CollectionViewSet)
+router.register(r'cart',views.CartViewSet,basename='cart')
+router.register(r'customer', views.CustomerViewSet, basename='customer')
+router.register(r'order', views.OrderViewSet, basename='order')
+
+#for retrive reviews form product use => 
+product_router = routers.NestedDefaultRouter(router, r'product', lookup='product')
+product_router.register(r'review', views.ReviewViewSet, basename='product-reviews')
+product_router.register(r'images',views.ProductIamgeViewSet, basename='images')
+
+#for retrive cartItem form cart use=> 
+cart_router = routers.NestedDefaultRouter(router, r'cart', lookup='cart') # send to cart_pk to CartItemViews.
+cart_router.register(r'cartItem', views.CartItemViewSet, basename='cart-items') #basename has 2 route cart-item-detials/ cart-item-list #as nested routers
+
+urlpatterns = [] + router.urls + product_router.urls + cart_router.urls 
+------------------------------------------------------
+store::model.py=> 
+-----------------------
+class ProductImage(models.Model):
+    product = models.ForeignKey(Products, on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='store/images') #in medial folder -> media/store/img/= here store the img.
+
+------------------------------------------------------
+store::serializer.py=> 
+--------------------------
+# ==========================================Django Part 3===========================================
+# ==========================================Product Image===========================================
+
+from .models import ProductImage
+
+class ProductImageSerializer(serializers.ModelSerializer):
+
+    #create product image : 
+    def create(self, validated_data):
+        product_id = self.context['product_id']
+        return ProductImage.objects.create(product_id=product_id,**validated_data)
+
+    class Meta: 
+        model = ProductImage
+        fields = ['id', 'image']
+--------------------------
+--------------------------
+store::views.py=> 
+--------------------------
+--------------------------
+# ========================================Django Part 3========================================
+# ========================================Product Image========================================
+
+from .serializers import ProductImageSerializer
+from .models import ProductImage
+
+class ProductIamgeViewSet(ModelViewSet):
+     serializer_class = ProductImageSerializer
+
+     #for creat image in single product_id we need to pass : product id to serializers.
+     def get_serializer_context(self) :
+         return {'product_id':self.kwargs['product_pk']} #get product_id form urls
+     
+     #we jsut show 1 image for 1 product -> that's why we have to send product id to serializers
+     def get_queryset(self):
+          return ProductImage.objects.filter(product_id=self.kwargs['product_pk']) #get product_id form urls.
+     
+--------------------------
+
+--------------------------------------------------------------------------------------------------
+------------------------------Product with Product image show in localhost--------------------------------------------------------------------
+
+store::urls.py=> 
+------------------
+from django.urls import path
+from store import views
+#default router show the api endpoint urls.
+from rest_framework_nested import routers
+
+
+app_name = 'store'
+
+
+router = routers.DefaultRouter()
+router.register(r'product', views.ProductViewSet, basename='product') #assertions baseName error that's why add base name
+router.register(r'collection', views.CollectionViewSet)
+router.register(r'cart',views.CartViewSet,basename='cart')
+router.register(r'customer', views.CustomerViewSet, basename='customer')
+router.register(r'order', views.OrderViewSet, basename='order')
+
+#for retrive reviews form product use => 
+product_router = routers.NestedDefaultRouter(router, r'product', lookup='product')
+product_router.register(r'review', views.ReviewViewSet, basename='product-reviews')
+product_router.register(r'images',views.ProductIamgeViewSet, basename='images')
+
+#for retrive cartItem form cart use=> 
+cart_router = routers.NestedDefaultRouter(router, r'cart', lookup='cart') # send to cart_pk to CartItemViews.
+cart_router.register(r'cartItem', views.CartItemViewSet, basename='cart-items') #basename has 2 route cart-item-detials/ cart-item-list #as nested routers
+
+urlpatterns = [] + router.urls + product_router.urls + cart_router.urls 
+--------------------------------------
+--------------------------------------
+store::serializer.py=> 
+--------------------------------------
+--------------------------------------
+from decimal import Decimal
+from rest_framework import serializers
+from store.models import Products,Collections,Review,Cart,CartItem,Customers,Order,OrderItems
+
+
+
+# ==========================================Django Part 3===========================================
+# ==========================================Product Image===========================================
+
+from .models import ProductImage
+
+class ProductImageSerializer(serializers.ModelSerializer):
+
+    #create product image : 
+    def create(self, validated_data):
+        product_id = self.context['product_id']
+        return ProductImage.objects.create(product_id=product_id,**validated_data)
+    
+
+    class Meta: 
+        model = ProductImage
+        fields = ['id', 'image']
+
+
+
+# ==========================================Django Part 3===========================================
+
+# class ProductSerializer(serializers.ModelSerializer):
+
+#     images = ProductImageSerializer(many=True, read_only=True)
+    
+
+    
+  
+#     price = serializers.DecimalField(max_digits=6, decimal_places=2, source='unit_price') #custome name price => comes from unit_prime -> product(model)
+#     price_with_tax = serializers.SerializerMethodField(method_name='calculate_tax')
+
+#     def calculate_tax(self, product:Products):
+#         return product.unit_price * Decimal(1.1)
+    
+#     class Meta : 
+#         model = Products
+#         fields = ['id','title', 'price', 'collections','price_with_tax','inventory','describtion','images'] #first search fields form model , if not find . then search => price , collections, tax_with price
+
+
+
+# class ProductSerializer(serializers.ModelSerializer):
+#     images = serializers.SerializerMethodField()
+
+#     price = serializers.DecimalField(max_digits=6, decimal_places=2, source='unit_price')
+#     price_with_tax = serializers.SerializerMethodField(method_name='calculate_tax')
+
+#     def calculate_tax(self, product: Products):
+#         return product.unit_price * Decimal(1.1)
+
+#     def get_images(self, product: Products):
+#         images = ProductImage.objects.filter(product=product)
+#         return ProductImageSerializer(images, many=True).data
+
+#     class Meta:
+#         model = Products
+#         fields = ['id', 'title', 'price', 'collections', 'price_with_tax', 'inventory', 'describtion', 'images']
+
+
+# class ProductSerializer(serializers.ModelSerializer):
+#     images = serializers.SerializerMethodField()
+
+#     price = serializers.DecimalField(max_digits=6, decimal_places=2, source='unit_price')
+#     price_with_tax = serializers.SerializerMethodField(method_name='calculate_tax')
+
+#     def calculate_tax(self, product: Products):
+#         return product.unit_price * Decimal(1.1)
+
+#     def get_images(self, product: Products):
+#         images = ProductImage.objects.filter(product=product)
+#         return [{'id': img.id, 'image': self.context['request'].build_absolute_uri(img.image.url)} for img in images]
+
+#     class Meta:
+#         model = Products
+#         fields = ['id', 'title', 'price', 'collections', 'price_with_tax', 'inventory', 'describtion', 'images']
+
+class ProductSerializer(serializers.ModelSerializer):
+    images = ProductImageSerializer(many=True, read_only=True)  # Assuming ProductImageSerializer is defined
+
+    price = serializers.DecimalField(max_digits=6, decimal_places=2, source='unit_price')
+    price_with_tax = serializers.SerializerMethodField(method_name='calculate_tax')
+
+    def calculate_tax(self, product: Products):
+        return product.unit_price * Decimal(1.1)
+    
+    class Meta:
+        model = Products
+        fields = ['id', 'title', 'price', 'collections', 'price_with_tax', 'inventory', 'describtion', 'images']
+
+
+# ----------------------------------------------------------------------------------------------
+class CollectionsSerializer(serializers.ModelSerializer):
+    products_count = serializers.IntegerField(read_only=True)  # Add this line
+
+    class Meta: 
+        model = Collections
+        fields = ['id', 'title', 'products_count']
+
+        
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+
+    class Meta: 
+        model = Review
+        fields = ['id', 'date','name', 'describtion','product']
+
+    #Receive data from context method form views.Reveiws (product_id, reviews_also )
+    def create(self,validated_data):
+        product_id = self.context ['product_id']
+        return Review.objects.create(product_id=product_id,**validated_data)
+
+
+
+
+#Cart take cartItems from CartItem serializers (parent - cart , child - cartItem):----------------------------
+
+class SimpleProductSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Products
+        fields = ['pk', 'title','unit_price']
+
+
+class CartItemSerializer(serializers.ModelSerializer):
+    product = SimpleProductSerializer() 
+    total_price = serializers.SerializerMethodField()
+
+    def get_total_price(self, cart_item: CartItem):
+        return cart_item.quantity * cart_item.product.unit_price
+
+    class Meta:
+        model = CartItem
+        fields = ['id', 'product', 'quantity', 'total_price']
+
+
+class AddCartItemSerializer(serializers.ModelSerializer):
+    product_id = serializers.IntegerField()
+
+    class Meta:
+        model = CartItem 
+        fields = ['id','product_id','quantity'] #those field get from DB . if need extra data in varibale then we use self.request -> get data from url through get_context(self.kwagrs['paramsName-which get from urls/users']) for serializer.
+
+    #data validation which get from url/users: if user input wrong product_id then => 
+    def validate_product_id(self,value):
+        if not Products.objects.filter(pk=value).exists():
+            raise serializers.ValidationError('No Product Fount with the given ID')
+        return value
+    
+    def save(self, **kwargs): #*** in serializer can't get params from urls , that's why use get_context() method in views to pass data into serializer.
+        #in views we are using => serializer.is_validate():  -> serializer.save() 
+        cart_id = self.context['cart_id'] #get from  views.context(method)
+        product_id = self.validated_data['product_id'] #get from  urls
+        quantity = self.validated_data['quantity'] #get from  urls
+
+        try:
+            cart_item = CartItem.objects.get(cart_id=cart_id, product_id=product_id)  #if get cart item then just update cartItem. and increase the quantity.
+            cart_item.quantity += quantity
+            cart_item.save()
+            self.instance = cart_item#if Model get any data then update and return instance
+        except CartItem.DoesNotExist:
+            product = Products.objects.get(pk=product_id)
+            self.instance = CartItem.objects.create(cart_id=cart_id, product=product, quantity=quantity)#if not found any cartItem then create new Item
+             #  or user => 
+             #  self.instance = CartItem.objects.create(cart_id=cart_id, **self.validated_data)
+        return self.instance #if model not get any data then create new instance then return to db.
+
+
+class UpdateCartItemSerializer(serializers.ModelSerializer):
+
+    class Meta : 
+        model = CartItem 
+        fields = ['quantity']
+
+        
+
+
+
+
+class CartSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
+    items = CartItemSerializer(many=True, read_only=True )  # Set read_only=True
+    total_price = serializers.SerializerMethodField()
+
+    def get_total_price(self,cart:Cart):
+        return sum([item.quantity * item.product.unit_price for item in cart.items.all()]) #most important Line.
+
+    class Meta:
+        model = Cart
+        fields = ['id', 'items', 'total_price']
+
+
+
+# ----------------------------------Customer Serializer-------------------------------------------------------
+
+class CustomerSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(read_only=True)
+
+    class Meta: 
+        model = Customers
+        fields = ['id', 'user_id', 'phone', 'email', 'birth_date', 'membership']
+
+
+
+
+
+
+
+
+# ----------------------------------OrderItem Serializer-------------------------------------------------------
+
+# class OrderItemSerializer(serializers.ModelSerializer):
+#     product = SimpleProductSerializer()
+
+#     class Meta: 
+#         model = OrderItems
+#         fields = ['id', 'product', 'unit_price', 'quantity']
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    product = SimpleProductSerializer()
+
+    class Meta: 
+        model = OrderItems
+        fields = ['id', 'product', 'unit_price', 'quantity']
+
+
+
+# ----------------------------------Order Serializer-------------------------------------------------------
+
+class OrderSerializer(serializers.ModelSerializer):
+
+    items = OrderItemSerializer(many=True)
+
+    class Meta:
+        model = Order
+        fields = ['id','payment_status', 'customers', 'place_order','items' ]
+
+
+# ----------------------------------------Create OrderSerializer--------------------------------------------
+from django.db import transaction
+from .singnals import order_created #
+
+class CreateOrderSerializer(serializers.Serializer):
+     #we are not uing the model serializer here...
+
+       #for real life senerio for creating order , we collect data from cart . that's why we use cart_id varibale here .
+    cart_id = serializers.UUIDField()#for creating the order we collect cart_ID ,
+
+    
+    #if cart_id does not exit then user can't create the order: 
+   
+    
+    
+    def validate_cart_id(self, cart_id):
+        if not Cart.objects.filter(pk=cart_id).exists() and Cart.objects.filter(pk=cart_id).count()==0 :
+            raise serializers.ValidationError('Cart ID not found!')
+        elif CartItem.objects.filter(cart_id=cart_id).count()==0:
+            raise serializers.ValidationError('Cart is Empty!')
+        return cart_id
+  
+
+    def save(self,**kwargs):
+        with transaction.atomic():
+            cart_id = self.validated_data['cart_id']#get from user form...
+            user_id = self.context.get('user_id')#get from views.
+            customer, created = Customers.objects.get_or_create(user_id=user_id)
+            order = Order.objects.create(customers=customer)
+
+
+            #for creating the order items : --------------------------------------------------------
+        
+            #create a cart_id then create a cart_items: then create OrderItems.
+            #using CartItem model for filter card_id from cart table.(then we get the product )
+            cart_items = CartItem.objects.filter(cart_id=cart_id).select_related('product')
+
+            order_items = [
+                OrderItems(
+                    order=order,
+                    product=item.product,
+                    unit_price=item.product.unit_price,
+                    quantity=item.quantity
+                )
+                for item in cart_items
+            ]
+
+            OrderItems.objects.bulk_create(order_items)
+
+            #now delete the cartItem cz we use it for creating OrderItems: 
+
+         
+
+            #created singnal fn instance: 
+            order_created.send_robust(self.__class__, order = order) #when created the order signal generated.
+            
+            # Corrected deletion of cart items
+            # CartItem.objects.filter(cart_id=cart_id).delete()
+            return order #return to the views-> create()
+
+            #we using the model operations=>  order,OrderItem,CartItem, then delete the cartItem ,so if 1 operations 
+            #fail then other operations working not properly .... if 1 operation is not work then otherOperations 
+            #will stop. that's why we use Tracsictions ORM methods.
+
+
+
+
+
+
+# -----------------------------------Udpdate serializers----------------------------------
+
+class UpdateOrderSerializer(serializers.ModelSerializer):
+    #just only update the payment_status
+    class Meta: 
+        model = Order 
+        fields = ['payment_status']
+
+
+
+
+--------------------------------------
+--------------------------------------
+store::views.py=> 
+--------------------------------------
+
+from rest_framework.response import Response #serializers to Json formater
+from store.models import Products,Collections,OrderItems,Review,Cart,CartItem,Customers,Order, OrderItems
+from store.serializers import ProductSerializer,CollectionsSerializer,ReviewSerializer,CartSerializer,CartItemSerializer,AddCartItemSerializer,UpdateCartItemSerializer,CustomerSerializer, OrderSerializer
+from django.db.models import Count
+
+
+
+from rest_framework.viewsets import ModelViewSet
+from django_filters.rest_framework import DjangoFilterBackend# filter easyly with any Db.coloumn like price ...
+from rest_framework.filters import SearchFilter,OrderingFilter # for search,sorting -> product 
+from rest_framework.pagination import PageNumberPagination #paginations
+from .filters import ProductFilter 
+from store.paginations import DefaultPagination #cutom paginations.
+
+#import for cart:
+from rest_framework.mixins import CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin,UpdateModelMixin
+from rest_framework.viewsets import GenericViewSet
+from .permissions import IsAdminOrReadOnly
+
+class ProductViewSet(ModelViewSet):
+
+    queryset = Products.objects.all()
+    serializer_class = ProductSerializer
+
+    #for filter: =>-------------------------
+    filter_backends = [DjangoFilterBackend,SearchFilter,OrderingFilter]
+    # pagination_class = PageNumberPagination
+    pagination_class = DefaultPagination  #custom paginations
+    # filterset_fields = ['collections_id']
+    filterset_class = ProductFilter #import form custom file.
+    search_fields  = ['title', 'describtion'] #search box working with those fields.
+    ordering_fields = ['unit_price','last_update']
+    permission_classes = [IsAdminOrReadOnly]
+
+
+    def get_serializer_context(self): #for serializer extra variable /mehtod to send to serializer
+        return {'request':self.request}
+    
+    def destroy(self, request, *args, **kwargs):
+          if OrderItems.objects.filter(product__id=kwargs['pk']).count() > 0:  #aggregations-> count(), ORM query fn-> Count().
+                return Response({"error": "product can't be delete cause in orderitem"},)
+         
+          return super().destroy(request, *args, **kwargs)
+  
+
+
+
+
+# --------------------------------collections-------------------------------------
+
+
+
+class CollectionViewSet(ModelViewSet):
+        permission_classes = [IsAdminOrReadOnly]
+        
+        queryset = Collections.objects.annotate(products_count=Count('products')).all()
+        serializer_class = CollectionsSerializer
+        
+
+        def destroy(self, request, *args, **kwargs):
+             if OrderItems.products.filter(product__id=kwargs['pk']).count() > 0:  # Changed 'collection' to 'collection'
+                return Response({'error': "collections can't be deleted because order items are included"})
+             
+             return super().destroy(request, *args, **kwargs)
+       
+
+class ReviewViewSet(ModelViewSet):
+     #cutom query : cz reviews show for every product : filter review for indivisual products.
+     def get_queryset(self):
+         return Review.objects.filter(product_id =self.kwargs['product_pk'])
+     
+
+     #use this method for => send data to Review serializer
+     def get_context_data(self) :
+         return {'product_id':self.kwargs['product_pk']}
+     
+     
+     serializer_class = ReviewSerializer
+
+
+class CartViewSet(CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin,GenericViewSet):
+     
+    #  queryset = Cart.objects.all()
+     queryset = Cart.objects.prefetch_related('items__product').all() #cart -> Fk-> CartItem(related_name=items), instide cartItem Fk-> Products(product) | optimize the query
+     serializer_class = CartSerializer
+
+
+#show single items of cart: 
+class CartItemViewSet(ModelViewSet): #tabels need , cart_id, product_id, quantity in DB.
+   
+    #allow http method : 
+    http_method_names = ['get', 'post','patch','delete'] #declare those methods which we want to use.
+
+    #for add cartItem use custom serializer: 
+    def get_serializer_class(self):
+         if self.request.method == "POST":
+              return AddCartItemSerializer #use for add new cartItem.
+         elif self.request.method == "PATCH":
+              return UpdateCartItemSerializer
+         
+         return CartItemSerializer # use for get() cartItem.
+    
+
+    def get_serializer_context(self): #data collect from urls , then send to serializer 
+         return {'cart_id':self.kwargs['cart_pk']}
+   
+
+
+     #need single cartItem hast cart_id column , so need cart_ID+ to catch  :
+    def get_queryset(self):
+          return CartItem.objects.\
+                        filter(cart_id=self.kwargs['cart_pk']).\
+                        select_related('product')
+
+
+
+#------------------------------Customer user -> JESON WEB TOKEN-------------------------------------------
+
+from rest_framework.decorators import action #get, put, delete ...details = retrive...
+from rest_framework.permissions import IsAuthenticated,AllowAny,DjangoModelPermissions,DjangoModelPermissionsOrAnonReadOnly#permisson for users
+from .permissions import FullDjangoModelPermission,ViewCustomerModelPermission #cutom permission.
+
+class CustomerViewSet(ModelViewSet):
+     queryset = Customers.objects.all()
+     serializer_class = CustomerSerializer
+     permission_classes = [DjangoModelPermissionsOrAnonReadOnly] #use our custom class : FullDjangoModelPermission.
+
+
+     @action(detail=True, permission_classes=[ViewCustomerModelPermission]) #custom model permission
+     def history(self,request,pk):#http://127.0.0.1:8000/store/customer/1/history....
+          return Response('ok')
+     
+     @action(detail=False, methods=['GET','PUT'], permission_classes=[IsAuthenticated()])
+     def me(self, request):#http://127.0.0.1:8000/store/customer/me/ -> this /me = def me(function). & request.user -> anonimus functions of classes.
+          customer, created = Customers.objects.get(user_id=request.user.id) #get -> method return 2 value: cutomerID, created/not_created boolean
+
+          if request.method == 'GET':#also show the user id , but user_id can't edit by user. that's why make the CustomerSerializer -> user_id(read_only)
+               serializer = CustomerSerializer(customer)
+               return Response(serializer.data)
+
+          elif request.method == 'PUT':
+               serializer = CustomerSerializer(customer, data=request.data)
+               serializer.is_valid(raise_exception=True)
+               serializer.save()
+               return Response(serializer.data)
+
+
+
+# --------------------------------------order viewset----------------------------------------------
+
+from .serializers import OrderSerializer,CreateOrderSerializer,OrderItemSerializer,UpdateOrderSerializer
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+
+class OrderViewSet(ModelViewSet):
+    # permission_classes = [IsAuthenticated]
+    #ALLOW THE METHOD 
+    # http_method_names = ['get','patch','delete','head','options']
+
+    # route permission: 
+    # def get_permissions(self):
+    #     if self.request.method in ['POST','DELETE']:
+    #          return [IsAdminUser()] 
+    #     return [IsAuthenticated()]
+
+    # after createing the orderItem user can see the order: that's why use this create methods.
+    # def create(self, request, *args, **kwargs):
+    #     serializer = CreateOrderSerializer(data=request.data, context={'user_id': self.request.user.id})
+    #     serializer.is_valid(raise_exception=True)
+    #     order = serializer.save()
+    #     serializer = OrderItemSerializer(order)
+    #     return Response(serializer.data)
+
+
+
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return CreateOrderSerializer
+        elif self.request.method == "PUT":
+             return UpdateOrderSerializer
+        return OrderSerializer
+
+    def get_serializer_context(self): 
+        return {'user_id': self.request.user.id} #send to serializer the user.id....
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.is_staff: #if user hast permission as an stuff then can see the order.
+            return Order.objects.all()
+
+        customer, created = Customers.objects.only('id').get(user_id=user.id)
+        return Order.objects.filter(customers=customer) #send to the serializer 
+
+   
+
+# ========================================Django Part 3========================================
+# ========================================Product Image========================================
+
+from .serializers import ProductImageSerializer
+from .models import ProductImage
+
+class ProductIamgeViewSet(ModelViewSet):
+     
+     serializer_class = ProductImageSerializer
+
+     #to creat image for single product_id we need to pass : product id to serializers.
+     def get_serializer_context(self) :
+         return {'product_id':self.kwargs['product_pk']} #get product_id form urls
+     
+     #we jsut show 1 image for 1 product -> that's why we have to send product id to serializers
+     def get_queryset(self):
+          return ProductImage.objects.filter(product_id=self.kwargs['product_pk']) #get product_id form urls.
+     
+--------------------------------------
+--------------------------------------
+store::models.py=> 
+---------------------------
+from django.db import models
+from uuid import uuid4 #for generate cart unique number.
+
+#import for users links with profile: 
+from django.conf import settings
+#improt admin for display first_name, last_name as ordering : 
+from django.contrib import admin
+
+# Create your models here.
+
+
+class Promotions(models.Model):
+    describtion = models.CharField(max_length=255)
+    discount = models.FloatField()
+
+
+class Collections(models.Model):
+    title = models.CharField(max_length=255)
+    featured_product = models.ForeignKey('Products',on_delete=models.SET_NULL, null=True, related_name='+')
+
+    def __str__(self):
+        return self.title 
+    
+    class Meta:
+        ordering = ['title']
+
+    
+
+
+class Products (models.Model):
+    slug = models.SlugField()
+    sku = models.CharField(max_length=10)
+    title = models.CharField(max_length=255)
+    describtion = models.TextField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2) 
+    inventory = models.IntegerField()
+    last_update = models.DateTimeField(auto_now=True)
+    collections = models.ForeignKey(Collections,on_delete=models.PROTECT,related_name='products') # if want to delete Collections , Before must be delete Products .
+    promotions = models.ManyToManyField(Promotions)
+
+    def __str__(self) -> str:
+        return self.title
+    
+    class Meta: 
+        ordering = ['title']
+
+
+
+class ProductImage(models.Model):
+    product = models.ForeignKey(Products, on_delete=models.CASCADE,related_name='product')
+    image = models.ImageField(upload_to='store/images') #in medial folder -> media/store/img/= here store the img.
+
+
+
+class Customers(models.Model):
+    MEMBERSHIP_BRONZE = 'B'
+    MEMBERSHIP_SILVER = 'S'
+    MEMBERSHIP_GOLD = 'G'
+    MEMBERSHIP_CHOICES = [
+        ('MEMBERSHIP_BRONZE', 'Bronze'),
+        ('MEMBERSHIP_SILVER', 'Silver'),
+        ('MEMBERSHIP_GOLD', 'Gold'),
+    ]
+
+    first_name = models.CharField(max_length=255)
+    last_name = models.CharField(max_length=255)
+    email = models.EmailField(unique=True)
+    phone = models.IntegerField(null=True)
+    birth_date = models.DateField(null=True)
+    membership = models.CharField(max_length=17, choices=MEMBERSHIP_CHOICES, default=MEMBERSHIP_BRONZE)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    @admin.display(ordering='user__first_name')
+    def first_name(self):
+        return self.user.first_name
+    
+    @admin.display(ordering='user__last_name')
+    def last_name(self):
+        return self.user.last_name
+    
+    def get_order_count(self):
+        return self.order_set.count()
+
+    class Meta:
+        ordering = ['user__first_name', 'user__last_name']
+
+
+        #custom model permission: 
+        permissions = [('view_history', 'Can view history')]
+        #then run >>> python manage.py makemigrations, migrate...
+
+
+class Order(models.Model):
+    PAYMENT_STATUS_PENDING = 'P'
+    PAYMENT_STATUS_COMPLETE = 'C'
+    PAYMENT_STATUS_FAILD = 'F'
+    PAYMENT_STATUS_CHOICE = [
+        ('PAYMENT_STATUS_PENDING','P'),
+        ('PAYMENT_STATUS_COMPLETE','C'),
+        ('PAYMENT_STATUS_FAILD','F'),
+    ]
+    place_order = models.DateTimeField(auto_now_add=True)
+    payment_status = models.CharField(
+    max_length=23, choices=PAYMENT_STATUS_CHOICE, default=PAYMENT_STATUS_PENDING
+    )
+
+    customers = models.ForeignKey(Customers, on_delete=models.PROTECT) #if accidently delete the Customers , we don't delete the order .
+
+    class Meta: 
+        permissions=[
+            ('cancel_order', 'Can cancel Order')
+        ]
+
+
+class OrderItems(models.Model):
+    order = models.ForeignKey(Order,on_delete=models.PROTECT, related_name='items')
+    product = models.ForeignKey(Products,on_delete=models.PROTECT, related_name='orderItems')
+    quantity = models.PositiveSmallIntegerField()
+    unit_price = models.DecimalField(max_digits=6,decimal_places=2)
+
+class Cart(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Address(models.Model):
+    street = models.CharField(max_length=255)  # Corrected max_length
+    city = models.CharField(max_length=255)  
+    
+
+    #one to one relationship
+    Customers = models.OneToOneField(Customers,on_delete=models.CASCADE, primary_key=True ) 
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(Cart,on_delete=models.CASCADE, related_name='items') #
+    product = models.ForeignKey(Products,on_delete=models.CASCADE)
+    quantity = models.PositiveSmallIntegerField()
+
+    unique_together = [['cart','products']] #for unique generated....
+
+
+
+class Review(models.Model):
+    product = models.ForeignKey(Products,on_delete=models.CASCADE, related_name='review')
+    name = models.CharField(max_length=255)
+    describtion = models.TextField()
+    date = models.DateField(auto_now_add=True)
+
+
+--------------------------------------
+
+--------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------

@@ -34,7 +34,6 @@ class ProductViewSet(ModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
 
 
-
     def get_serializer_context(self): #for serializer extra variable /mehtod to send to serializer
         return {'request':self.request}
     
@@ -195,3 +194,22 @@ class OrderViewSet(ModelViewSet):
         return Order.objects.filter(customers=customer) #send to the serializer 
 
    
+
+# ========================================Django Part 3========================================
+# ========================================Product Image========================================
+
+from .serializers import ProductImageSerializer
+from .models import ProductImage
+
+class ProductIamgeViewSet(ModelViewSet):
+     
+     serializer_class = ProductImageSerializer
+
+     #to creat image for single product_id we need to pass : product id to serializers.
+     def get_serializer_context(self) :
+         return {'product_id':self.kwargs['product_pk']} #get product_id form urls
+     
+     #we jsut show 1 image for 1 product -> that's why we have to send product id to serializers
+     def get_queryset(self):
+          return ProductImage.objects.filter(product_id=self.kwargs['product_pk']) #get product_id form urls.
+     
