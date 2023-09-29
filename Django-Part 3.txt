@@ -1409,3 +1409,198 @@ ADMINS = [
 ]
 ---------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------------
+-------------------------------------Jobs & queue(Celery,radis-bacground Tasks)--------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+#Long Running Task : 
+-------------------
+1. processing img & video . 
+2. generating report 
+3. sending email 
+4. Running meching learing models . 
+
+#running process in background .
+ 
+in celery provide multi workers to run multi tasks in background .
+
+    EX: App -> Queue(message brokers-middle man) -> workers1,workers2....(worker take jobs from queue )
+
+*** this workers don't impact on our Main Applications process. 
+*** in specific time we can run workers to do jobs in backgrounds. 
+
+# App -> queue(message broker claster) -> clientApp [if client app in offline then , message broker send sms when client active]
+
+**** we use message broker to reliable  delivery massge between apps.
+
+1. redis => works as a message broker + caching 
+2. rabbitMQ => (real enterprice level message broker.)
+---------------------------------------------------------
+---------------------------------------------------------
+# installing redis image on docker => >>> docker run -d -p 6379:6379 redis
+---------------------------------------------------------
+---------------------------------------------------------
+#install redis on django. >>> pip install redis
+---------------------------------------------------------
+---------------------------------------------------------
+#install celery on django >>> pip install celery 
+
+------------------------------------Celery Configurations:---------------------------------------------------------------------
+
+storefront:celery.py=> 
+----------------------
+
+#------------------------this code is work-------------------------------
+
+from __future__ import absolute_import, unicode_literals
+import os
+from celery import Celery
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'storefront.settings')
+
+app = Celery('storefront')
+app.config_from_object('django.conf:settings', namespace='CELERY')
+app.autodiscover_tasks()
+
+
+
+
+# -------------------------------------------------------------
+# import os
+# from celery import Celery
+
+# #setup environment varible: as storefront.settings: 
+# os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'storefront.settings')
+
+
+
+# #create celery: 
+# celery = Celery('storefront')
+
+# #where celery find the setting : 
+# celery.config_from_object('django.conf:settings',namespace='Celery')
+
+# celery.autodiscover_tasks()
+
+
+
+------------------------------
+------------------------------
+storefront::settings.py=> 
+----------------------
+#for celery : SET redis server. 
+
+# CELERY_BROKER_URL = 'redis://localhost:6379/1' #here /1 = is a database name #now this redis run inside the docker container. 
+
+
+
+CELERY_BROKER_URL = 'redis://localhost:6379/1'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
+
+
+from celery.schedules import crontab
+
+
+------------------------------
+storefront::__init__.py=> 
+-------------------------
+# from .celerys import celery
+
+
+
+
+from __future__ import absolute_import, unicode_literals
+
+# This will make sure the app is always imported when
+# Django starts so that shared_task will use this app.
+from .celery import app as celery_app
+
+__all__ = ('celery_app',)
+
+------------------------------
+------------------------------
+then run on terminal >>> celery -A ProjectName WorkersName dubugingForTesting
+
+>>>> celery -A storefront worker --loglevel=info | for linux command [kill my 3 hours] *****
+
+>>> celery -A storefront worker --pool=save --l info | for windwos command .
+------------------------------
+------------------------------
+------------------------------
+
+----------------------------------for long task with celery :task.py-----------------------------------------------------------------------
+
+playground::tasks.py=>:set the task that will do by worker in background (sending 10k mail to customers)
+-----------------------
+
+from time import sleep 
+from celery import shared_task
+
+@shared_task
+def notify_customers(message): 
+    print('Sending 10k sms')
+    print(message)
+    sleep(10)
+    print('Email were success fully send ')
+-------------------------
+-------------------------
+playground::views.py=> 
+---------------------
+from django.shortcuts import render
+
+from .task import notify_customers
+# Create your views here.
+
+
+
+def say_hello(request):
+
+    #celery task for sending message: inside the dely write the sms => which pass to the notify_cusotmers: 
+    notify_customers.delay("Hello ")
+
+
+
+    return render(request, 'hello.html',{"name":"Shuvo"})
+
+
+
+-------------------------
+-------------------------
+
+---------------------------------------Scheduling Priodic Task------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+settings.py=> 
+---------------
+CELERY_BROKER_URL = 'redis://localhost:6379/1'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
+
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'notify_customers': {
+        'task': 'playground.task.notify_customers',
+        'schedule': 5, # seconds
+        # 'schedule': crontab(day_of_month=10, day_of_week=1, hour=7,minute=30), # fixed time
+        'args': ['Hello world'], 
+        'kwargs': {}
+    }
+}
+
+
+>>> celery -A storefront beat 
+every 5 second print the sms. 
+
+---------------------------------------------------------------------------------------------------------
+-------------------------------------------check the celery task on control panel --------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+>>> pip install flower
+
+>>> celery -A storefront flower 
+---------------------------------------------------------------------------------------------------------
+-----------------------------------Automate Testing: ----------------------------------------------------------------------
+
+HTTP error => 401 [unauthorized]
+=> 403 [noAmin]
+=> 400 [admin & invalid data ]
+=> 200 [admin & data ]
+---------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------

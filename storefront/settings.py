@@ -195,3 +195,24 @@ DEFAULT_FROM_EMAIL = 'from@shuvo.com'
 ADMINS = [
     ('Shuvo', 'kali@Shuvo.com')
 ]
+
+#for celery : SET redis server. 
+
+# CELERY_BROKER_URL = 'redis://localhost:6379/1' #here /1 = is a database name #now this redis run inside the docker container. 
+
+
+
+CELERY_BROKER_URL = 'redis://localhost:6379/1'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
+
+# from celery.schedules import crontab
+
+# CELERY_BEAT_SCHEDULE = {
+#     'notify_customers': {
+#         'task': 'playground.task.notify_customers',
+#         'schedule': 5, # seconds
+#         # 'schedule': crontab(day_of_month=10, day_of_week=1, hour=7,minute=30), # fixed time
+#         'args': ['Hello world'], 
+#         'kwargs': {}
+#     }
+# }
