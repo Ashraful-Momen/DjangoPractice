@@ -1602,5 +1602,239 @@ HTTP error => 401 [unauthorized]
 => 400 [admin & invalid data ]
 => 200 [admin & data ]
 ---------------------------------------------------------------------------------------------------------
+-----------------------------------------Unit test + PyTest----------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+when start testing > just check the api functions / not fix or impletement code at this time . 
+>>>> after testing then fix the code . 
+
+
+
+# install pytest in develop mode for testing code .
+>>> pip install --dev pytest
+
+
+>>> pip install pytest | windwos
+>>> pip install pytest-django | windwos
+---------------------------------------------------------------------------------------------------------
+MianProjectFolder::pytest.ini=> 
+--------------------------------
+[pytest]
+
+DJANGO_SETTINGS_MODULE = storefront.settings 
+
+
+---------------------------------------------------------------------------------------------------------
+store::tests::test_collections_api.py=> 
+---------------------------------------
+#(Arrange,Act,Assert): 
+from rest_framework.test import APIClient
+from rest_framework import status
+import pytest
+
+@pytest.mark.django_db
+class TestCreateCollections: 
+    @pytest.mark.skip #for skip this test | use this decorators
+    def test_if_user_anonimous_return_401(self):
+        
+
+        #Arragen: 
+
+
+        #Act: check the app behaviour=> 
+        client = APIClient()
+        response = client.post('/store/collection/',{'title': 'a'})
+
+
+        #Assert: working or not => True/Fasle
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        # assert response.status_code == status.HTTP_401_UNAUTHORIZED
+------------------------------------------------------------------
+goto to cmd and run => >>> pytest 
+
+#run a signal pytest | signal pytest class => 
+---------------------------------------------
+>>> pytest store/tests/test_collections_api.py::TestCreateCollections 
+>>> pytest folderLocations/fileName.py::className.
+
+# check anonimus test=> 
+-----------------------
+>>> pytest -k anonimus    | -k -> key: nameOfTest.
+
+-------------------------------------Continous test run when change in coding--------------------------------------------------------------------
+
+>>>install >>> pip install pytest-watch
+>>> ptw | this command to run the test continously. when change the code. 
+
+
+-------------------------------------Run pytest in VSCODE--------------------------------------------------------------------
+
+>> select the jur icon >>> run & debug . 
+>> select pytest >>> select root directory. 
+>> run the test . [I don't like it .VSCODE test | pytest is 1000% of better.]
+---------------------------------------------------------------------------------------------------------
+--------------------------------------Run Multiple endpoint assertions test.-------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+store::tests::test_collections_api=> 
+======================================
+#(Arrange,Act,Assert): 
+from django.contrib.auth.models import User
+from rest_framework.test import APIClient
+from rest_framework import status
+import pytest
+
+@pytest.mark.django_db
+class TestCreateCollections: 
+    # @pytest.mark.skip    #for skip this test
+    def test_if_user_anonimous_return_401(self):
+        
+
+        #Arragen: 
+
+
+        #Act: check the app behaviour=> 
+        client = APIClient()
+        # client.force_authenticate(user={}) #make the user as authenticated.
+        client.force_authenticate(user=User(is_staff=True)) #make the user as authenticated.
+        response = client.post('/store/collection/',{"title":""})
+
+
+        #Assert: working or not => True/Fasle
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST #check the bad request.
+        # assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        # assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+    def test_if_collections_is_created_201(self):
+        
+
+        #Arragen: 
+
+
+        #Act: check the app behaviour=> 
+        client = APIClient()
+        client.force_authenticate(user=User(is_staff=True)) #make the user as authenticated.
+        response = client.post('/store/collection/',{"title":"Testing by Pytest"})
+
+
+        #Assert: working or not => True/Fasle
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data['id'] > 0
+        # assert response.status_code == status.HTTP_401_UNAUTHORIZED
+---------------------------------------------------------------------------------------------------------
+--------------------------------------Fixture: fix some test.-------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+some repetative thing like , authorize user set , client api set...etc we fix in another file=> 
+
+in fixture use model bakery for create object for models. for testing purpose.
+>>> pip install model-bakery
+----------------
+----------------
+store::conftest.py=>  
+--------------------
+--------------------
+from rest_framework.test import APIClient
+import pytest
+from django.contrib.auth.models import User
+
+from rest_framework import status
+
+@pytest.fixture
+def api_client(): #this fixture works for end_api
+    return APIClient
+
+
+@pytest.fixture
+def authenticate(api_client):# in api_client parameter we pass the authenticate_user.
+    def do_authenticate(is_staff=False):
+        return api_client.force_authenticate(user=User(is_staff=is_staff))
+    return do_authenticate
+    
+
+
+
+--------------------
+--------------------
+store::tests::test_collections_api.py=> 
+----------------------------------------
+#(Arrange,Act,Assert): 
+from django.contrib.auth.models import User
+from rest_framework import status
+import pytest
+from store.models import Collections,Products
+from model_bakery import baker # for creating the models objects ,test purpose.
+from rest_framework.test import APIClient
+
+
+
+#create fixture for api_end_point: 
+@pytest.fixture
+def create_collection(api_client):
+
+    def do_create_collection(collection):
+        return api_client().post('/store/collection/', collection)
+    # def do_create_collection(collection):#receive api {'title':'value'}
+    #     return api_client.post('/store/collection',collection)
+    return do_create_collection
+
+
+@pytest.mark.django_db
+class TestCreateCollections: 
+    # @pytest.mark.skip    #for skip this test
+    def test_if_user_anonimous_return_401(self,create_collection): #this api_client,collection from fixture.
+        
+        response = create_collection({'title':'a'}) #this function call from fixture
+        
+        assert response.status_code == status.HTTP_201_CREATED #check the bad request.
+       
+
+
+    def test_if_collections_is_created_201(self,create_collection):
+        
+        response = create_collection({'title':'a'}) #this function call from fixture
+       
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data['id'] > 0
+        # assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+
+
+
+# ======================================================
+import pytest
+from rest_framework import status
+from store.models import Collections
+from model_bakery import baker
+
+@pytest.mark.django_db
+class TestRetriveCollection():
+    def test_is_collection_exit_return_200(self, api_client):
+        # Create a collection using model_bakery
+        collection = baker.make(Collections)
+
+        # Make a GET request to retrieve the collection
+        response = api_client().get(f'/store/collection/{collection.id}/') #if we miss '/' end of the api url , error : 301. 
+
+        # Check if the response status code is 200 OK
+        assert response.status_code == status.HTTP_200_OK
+
+        # Check if the response data matches the expected values
+        assert response.data == {
+            'id': collection.id,
+            'title': collection.title,
+            'products_count': 0  # Assuming products_count is expected to be 0
+        }
+
+ # collection = baker.make(Collections) #make collections object for model .
+        # baker.make(Products,collection=collection, _quantity=10) #create 10 product for 1 collections.
+
+        # assert False
+----------------
+---------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------------

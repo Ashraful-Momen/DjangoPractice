@@ -17,7 +17,6 @@ from store.paginations import DefaultPagination #cutom paginations.
 from rest_framework.mixins import CreateModelMixin,RetrieveModelMixin,ListModelMixin,DestroyModelMixin,UpdateModelMixin
 from rest_framework.viewsets import GenericViewSet
 from .permissions import IsAdminOrReadOnly
-
 class ProductViewSet(ModelViewSet):
 
     queryset = Products.objects.all()
@@ -52,7 +51,7 @@ class ProductViewSet(ModelViewSet):
 
 
 class CollectionViewSet(ModelViewSet):
-        permission_classes = [IsAdminOrReadOnly]
+        # permission_classes = [IsAdminOrReadOnly]
         
         queryset = Collections.objects.annotate(products_count=Count('products')).all()
         serializer_class = CollectionsSerializer
