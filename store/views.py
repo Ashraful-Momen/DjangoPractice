@@ -19,7 +19,7 @@ from rest_framework.viewsets import GenericViewSet
 from .permissions import IsAdminOrReadOnly
 class ProductViewSet(ModelViewSet):
 
-    queryset = Products.objects.all()
+    queryset = Products.objects.select_related('collections').all()
     serializer_class = ProductSerializer
 
     #for filter: =>-------------------------

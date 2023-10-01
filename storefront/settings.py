@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'django_filters',
     'rest_framework',
     'djoser', #this package for token base Auth.
+    'silk',
     'playground',
     'store',
     'taqs',
@@ -69,7 +70,7 @@ AUTH_USER_MODEL = 'core.User' #appName.ModelName= core.User => core app customiz
 
 MIDDLEWARE = [
      "corsheaders.middleware.CorsMiddleware",
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -77,7 +78,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
 ]
+
+# if DEBUG: 
+#     MIDDLEWARE += ['silk.middleware.SilkyMiddleware']
 
 ROOT_URLCONF = 'storefront.urls'
 
