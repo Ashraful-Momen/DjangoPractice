@@ -2193,5 +2193,205 @@ goto silk dashboard >>>http://localhost:8000/silk/
 **** after optimize the query >>> setting.py >>> comment out > SilkyMiddleware . then run locust again and 
 check the performance for 500 users. 
 ---------------------------------------------------------------------------------------------------------
+---------------------------------------Caching Redis------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+playground::views.py=> create the views for 2 second delay | for testing the caching...
+---------------------
+from django.shortcuts import render
+import requests
+
+
+def say_hello(request):
+
+    requests.get('https://httpbin.org/delay/2')
+
+    return render(request, 'hello.html', {"name": "Shuvo"})
+
+
+
+
+
+-----------------------------
+-----------------------------
+goto >> locustfiles::browse_product.py=> 
+----------------------------------------
+from locust import HttpUser,task,between
+from random import randint
+
+
+class WebsiteUser(HttpUser):
+    #view products
+    #views product details
+    # add product to cart
+
+    wait_time = between(1,5) #waiting time is (1sec,5sec):
+
+    @task(4) #we can use this task_number as our wish. 
+    def view_products(self):
+        print('view products')
+
+        collection_id = randint(1,10)
+        self.client.get(f'/store/product/?collection_id={collection_id}', name='/store/product') #want to show dirrent type fo collections products , that's why use randint.
+        #product has a FK with collections_id , that why we can use => /store/product/?collection_id=2.(find the collections id of the product.)
+
+    @task(2)
+    def view_product(self): #single product.
+        print('view products details')
+        product_id = randint(1,999)
+        self.client.get(f'/store/product/{product_id}', name='/store/product/:id')
+
+
+    @task(1)
+    def add_to_cart(self): # here cart_id value comes from 'def on_start':
+        print('add to cart')
+        product_id = randint(1, 10)
+        self.client.get(f'/store/cart/{self.cart_id}/cartItem/',
+                        name='/store/cart/cartItem',
+                        json={
+                            'product_id': product_id,
+                            'quantity': 1
+                        })
+    
+    @task(5) #add this funcitons for checking the Caching of Redis. ****
+    def say_hello(self):
+        print('say hello form playground app ')
+        self.client.get('/playground/hello/')
+
+
+    #it's call everytime to new user to browse our website, it's not task , life cycle hood:
+    def on_start(self):
+        response = self.client.post(f'/store/cart/')
+        result = response.json()
+        self.cart_id = result['id']
+
+    
+
+    
+
+
+-----------------------------
+run redis in docker => >>> docker run -d -p 6379:6379 redis 
+
+---------------------------------
+---------------------------------
+install django-redis >>> pip install django-redis       | and configure the settings.
+---------------------------------
+---------------------------------------------------------------------------------------------------------
+-------------------------------------Low level caching --------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+playground::views.py=> 
+--------------------
+from django.shortcuts import render
+import requests
+from django.core.cache import cache
+
+
+def say_hello(request):
+    key = 'httpbin_result'
+    if cache.get(key) is None: 
+        response = requests.get('https://httpbin.org/delay/2')
+        data = response.json()
+        cache.set(key,data)        # cache.get(key,data,10*60) last valie indecate the caching timeout. 
+
+    return render(request, 'hello.html', {'name': cache.get(key)})
+
+
+
+setting.py=> 
+-------------
+#------------------------------------------django redis
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/2",
+        "TIMEOUT": 10*60, #custome caching timeout . . . 
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+---------------------------------------------------------------------------------------------------------
+------------------------------------------caching with decoretors---------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+playground::views.py=> 
+------------------------
+
+from django.shortcuts import render
+import requests
+from django.core.cache import cache
+from django.views.decorators.cache import cache_page
+
+
+@cache_page(10*60)
+def say_hello(request):
+        response = requests.get('https://httpbin.org/delay/2')
+        data = response.json()
+   
+        return render(request, 'hello.html', {'name': data})
+
+---------------------------------------------------------------------------------------------------------
+---------------------------------------------class base decorator------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
+playround::urls.py=> 
+-------------------
+from django.urls import path
+from playground import views
+
+app_name = 'playground'
+
+urlpatterns = [
+    path('hello/', views.SayHello.as_view(), name='hello'),
+]
+========================
+playground::views.py=> 
+========================
+from django.shortcuts import render
+import requests
+from django.core.cache import cache
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from rest_framework.views import APIView
+
+
+class SayHello(APIView):
+        @method_decorator(cache_page(10*60))
+        def get(self,request):
+            response = requests.get('https://httpbin.org/delay/2')
+            data = response.json()
+            return render(request, 'hello.html', {'name': data})
+-----------------------------
+-------------------------------------------------------------
+now check the locust with 500user. for caching optimizations.
+-----------------------------
+-----------------------------
+goto docker cli >>> checkout the cache file . in setting we set the redis as database numbers: 2
+
+run redis cli inside the docker => 
+
+>>>>docker exec -it 5cfac4ddbdae redis-cli
+
+-----------------------------
+amshu@DESKTOP-DQD3N2V MINGW64 /i/Django Code Practice From Mosh/1.Django First Part (django3rd-part)
+$ docker exec -it 5cfac4ddbdae redis-cli
+127.0.0.1:6379> select 2
+OK
+
+127.0.0.1:6379[2]> keys *
+(empty array)
+127.0.0.1:6379[2]> keys *
+1) ":1:views.decorators.cache.cache_header..e58e888c06a2cff7ef17b423ce360397.en-us.UTC"
+2) ":1:views.decorators.cache.cache_page..GET.e58e888c06a2cff7ef17b423ce360397.d41d8cd98f00b204e9800998ecf8427e.en-us.UTC"
+
+127.0.0.1:6379[2]> flushall
+OK
+127.0.0.1:6379[2]>
+
+-----------------------------
+-----------------------------
+
+
+
 ---------------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------------
+

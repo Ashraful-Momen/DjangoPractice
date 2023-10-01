@@ -70,7 +70,7 @@ AUTH_USER_MODEL = 'core.User' #appName.ModelName= core.User => core app customiz
 
 MIDDLEWARE = [
      "corsheaders.middleware.CorsMiddleware",
-    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -221,3 +221,17 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
 #         'kwargs': {}
 #     }
 # }
+
+
+#------------------------------------------django redis
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/2",
+        "TIMEOUT": 10*60, #custome caching timeout . . . 
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}

@@ -34,6 +34,11 @@ class WebsiteUser(HttpUser):
                             'product_id': product_id,
                             'quantity': 1
                         })
+    
+    @task(5)
+    def say_hello(self):
+        print('say hello form playground app ')
+        self.client.get('/playground/hello/')
 
 
     #it's call everytime to new user to browse our website, it's not task , life cycle hood:
